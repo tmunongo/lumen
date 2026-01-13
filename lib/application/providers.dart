@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
+import 'package:lumen/application/services/ingestion_service.dart';
 import 'package:lumen/application/services/project_service.dart';
 import 'package:lumen/domain/entities/project.dart';
 import 'package:lumen/domain/repositories/artifact_repository.dart';
@@ -9,6 +10,9 @@ import 'package:lumen/infrastructure/database/isar_database.dart';
 import 'package:lumen/infrastructure/repositories/isar_artifact_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_project_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_tag_repository.dart';
+import 'package:lumen/infrastructure/services/html_sanitizer_impl.dart';
+import 'package:lumen/infrastructure/services/readability_extractor.dart';
+import 'package:lumen/infrastructure/services/web_fetcher.dart';
 
 // Database instance provider
 final isarProvider = FutureProvider<Isar>((ref) async {
@@ -47,4 +51,25 @@ final projectsProvider = StreamProvider<List<Project>>((ref) async* {
 
   // In production, you'd set up Isar watchers here for reactive updates
   // For now, we'll rely on manual refreshes
+});
+
+final webFetcherProvider = Provider<WebFetcher>((ref) {
+  return WebFetcher();
+});
+
+final contentExtractorProvider = Provider((ref) {
+  return ReadabilityExtractor();
+});
+
+final htmlSanitizerProvider = Provider((ref) {
+  return HtmlSanitizerImpl();
+});
+
+final ingestionServiceProvider = Provider<IngestionService>((ref) {
+  return IngestionService(
+    repository: ref.watch(artifactRepositoryProvider),
+    fetcher: ref.watch(webFetcherProvider),
+    extractor: ref.watch(contentExtractorProvider),
+    sanitizer: ref.watch(htmlSanitizerProvider),
+  );
 });
