@@ -1,17 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:lumen/application/services/artifact_service.dart';
+import 'package:lumen/application/services/highlight_service.dart';
 import 'package:lumen/application/services/ingestion_service.dart';
 import 'package:lumen/application/services/link_service.dart';
 import 'package:lumen/application/services/project_service.dart';
 import 'package:lumen/application/services/relationship_service.dart';
 import 'package:lumen/domain/entities/project.dart';
 import 'package:lumen/domain/repositories/artifact_repository.dart';
+import 'package:lumen/domain/repositories/highlight_repository.dart';
 import 'package:lumen/domain/repositories/link_repository.dart';
 import 'package:lumen/domain/repositories/project_repository.dart';
 import 'package:lumen/domain/repositories/tag_repository.dart';
 import 'package:lumen/infrastructure/database/isar_database.dart';
 import 'package:lumen/infrastructure/repositories/isar_artifact_repository.dart';
+import 'package:lumen/infrastructure/repositories/isar_highlight_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_link_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_project_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_tag_repository.dart';
@@ -49,19 +52,21 @@ final linkRepositoryProvider = Provider<LinkRepository>((ref) {
   return IsarLinkRepository(isar);
 });
 
+final highlightRepositoryProvider = Provider<HighlightRepository>((ref) {
+  final isar = ref.watch(isarProvider).value;
+  if (isar == null) throw Exception('Isar not initialized');
+  return IsarHighlightRepository(isar);
+});
+
+// Service providers
 final projectServiceProvider = Provider<ProjectService>((ref) {
   final repository = ref.watch(projectRepositoryProvider);
   return ProjectService(repository);
 });
 
-// State notifier for projects list
 final projectsProvider = StreamProvider<List<Project>>((ref) async* {
   final service = ref.watch(projectServiceProvider);
-
   yield await service.getAllProjects();
-
-  // In production, you'd set up Isar watchers here for reactive updates
-  // For now, we'll rely on manual refreshes
 });
 
 final webFetcherProvider = Provider<WebFetcher>((ref) {
@@ -103,3 +108,7 @@ final relationshipServiceProvider = Provider<RelationshipService>((ref) {
   return RelationshipService();
 });
 
+final highlightServiceProvider = Provider<HighlightService>((ref) {
+  final repository = ref.watch(highlightRepositoryProvider);
+  return HighlightService(repository);
+});

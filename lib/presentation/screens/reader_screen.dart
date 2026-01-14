@@ -1,8 +1,12 @@
 import 'dart:io';
+
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
+import 'package:lumen/application/services/highlight_service.dart';
 import 'package:lumen/domain/entities/artifact.dart';
 import 'package:lumen/domain/entities/artifact_link.dart';
 import 'package:lumen/presentation/theme/reader_theme.dart';
@@ -30,6 +34,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showToolbar = true;
   double _scrollProgress = 0.0;
+  SelectedContent? _currentSelection;
 
   @override
   void initState() {
@@ -60,9 +65,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     });
   }
 
+  // ... (imports need check, but this is replace)
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final highlightService = ref.watch(highlightServiceProvider);
 
     return Theme(
       data: isDark
@@ -71,211 +79,363 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
         child: Scaffold(
-          body: Stack(
-            children: [
-              // Reading progress indicator
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: LinearProgressIndicator(
-                  value: _scrollProgress,
-                  backgroundColor: Colors.transparent,
-                  valueColor: AlwaysStoppedAnimation(
-                    isDark ? ReaderTheme.darkAccent : ReaderTheme.lightAccent,
+          body: SelectionArea(
+            onSelectionChanged: (selection) {
+              _currentSelection = selection;
+            },
+            contextMenuBuilder: (context, editableTextState) {
+              return AdaptiveTextSelectionToolbar.buttonItems(
+                anchors: editableTextState.contextMenuAnchors,
+                buttonItems: [
+                  ...editableTextState.contextMenuButtonItems,
+                  ContextMenuButtonItem(
+                    onPressed: () {
+                      final text = _currentSelection?.plainText;
+                      if (text != null && text.isNotEmpty) {
+                        highlightService
+                            .addHighlight(
+                              artifactId: widget.artifact.id,
+                              selectedText: text,
+                            )
+                            .then((_) {
+                              editableTextState.hideToolbar();
+                              setState(() {}); // Refresh to show highlight
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Highlight added'),
+                                  ),
+                                );
+                              }
+                            });
+                      }
+                    },
+                    label: 'Highlight',
                   ),
-                  minHeight: 2,
-                ),
-              ),
-
-              // Main content
-              CustomScrollView(
-                controller: _scrollController,
-                slivers: [
-                  // Minimal app bar
-                  SliverAppBar(
-                    floating: true,
-                    snap: true,
-                    elevation: 0,
+                ],
+              );
+            },
+            child: Stack(
+              children: [
+                // Reading progress indicator
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    value: _scrollProgress,
                     backgroundColor: Colors.transparent,
-                    leading: widget.showBackButton
-                        ? IconButton(
-                            icon: const Icon(Icons.arrow_back),
-                            onPressed: widget.onBack ?? () => Navigator.pop(context),
-                          )
-                        : null,
-                    actions: [
-                      IconButton(
-                        icon: Icon(
-                          _showToolbar ? Icons.expand_more : Icons.expand_less,
-                        ),
-                        onPressed: _toggleToolbar,
-                      ),
-                    ],
+                    valueColor: AlwaysStoppedAnimation(
+                      isDark ? ReaderTheme.darkAccent : ReaderTheme.lightAccent,
+                    ),
+                    minHeight: 2,
                   ),
+                ),
 
-                  // Article content
-                  SliverToBoxAdapter(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 32,
+                // Main content
+                CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    // Minimal app bar with back button support
+                    SliverAppBar(
+                      floating: true,
+                      snap: true,
+                      elevation: 0,
+                      backgroundColor: Colors.transparent,
+                      leading: widget.showBackButton
+                          ? IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed:
+                                  widget.onBack ?? () => Navigator.pop(context),
+                            )
+                          : null,
+                      actions: [
+                        IconButton(
+                          icon: Icon(
+                            _showToolbar
+                                ? Icons.expand_more
+                                : Icons.expand_less,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Article title
-                              Text(
-                                widget.artifact.title,
-                                style: Theme.of(context).textTheme.displayLarge,
-                              ),
+                          onPressed: _toggleToolbar,
+                        ),
+                      ],
+                    ),
 
-                              const SizedBox(height: 16),
-
-                              // Metadata
-                              if (widget.artifact.sourceUrl != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    Uri.parse(widget.artifact.sourceUrl!).host,
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: isDark
-                                              ? ReaderTheme.darkTextSecondary
-                                              : ReaderTheme.lightTextSecondary,
-                                        ),
-                                  ),
-                                ),
-
-                              // Reading time and date
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.access_time,
-                                    size: 14,
-                                    color: isDark
-                                        ? ReaderTheme.darkTextSecondary
-                                        : ReaderTheme.lightTextSecondary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _formatDate(widget.artifact.createdAt!),
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: isDark
-                                              ? ReaderTheme.darkTextSecondary
-                                              : ReaderTheme.lightTextSecondary,
-                                        ),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 32),
-
-                              Divider(
-                                color: isDark
-                                    ? ReaderTheme.darkBorder
-                                    : ReaderTheme.lightBorder,
-                              ),
-
-                              // Inline Graph
-                              Consumer(
-                                builder: (context, ref, child) {
-                                  final linkService = ref.watch(linkServiceProvider);
-                                  return FutureBuilder<List<List<dynamic>>>(
-                                    future: Future.wait([
-                                      linkService.getOutgoingLinksWithArtifacts(widget.artifact.id),
-                                      linkService.getIncomingLinksWithArtifacts(widget.artifact.id),
-                                    ]),
-                                    builder: (context, snapshot) {
-                                      if (!snapshot.hasData) return const SizedBox.shrink();
-
-                                      final outgoing = snapshot.data![0] as List<({ArtifactLink link, Artifact artifact})>;
-                                      final incoming = snapshot.data![1] as List<({ArtifactLink link, Artifact artifact})>;
-                                      final allLinks = [...outgoing, ...incoming];
-
-                                      if (allLinks.isEmpty) return const SizedBox.shrink();
-
-                                      return Column(
-                                        children: [
-                                          const SizedBox(height: 24),
-                                          InlineGraphWidget(
-                                            centerArtifact: widget.artifact,
-                                            connectedArtifacts: allLinks,
-                                            height: 200,
-                                            onArtifactTap: (artifact) {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) => ReaderScreen(
-                                                    artifact: artifact,
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                          const SizedBox(height: 24),
-                                          Divider(
-                                            color: isDark
-                                                ? ReaderTheme.darkBorder
-                                                : ReaderTheme.lightBorder,
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                              
-                              const SizedBox(height: 32),
-
-                              // Content
-                              if (widget.artifact.type == ArtifactType.quote)
-                                _QuoteContent(artifact: widget.artifact)
-                              else if (widget.artifact.type == ArtifactType.note)
-                                _NoteContent(artifact: widget.artifact)
-                              else if (widget.artifact.type == ArtifactType.image)
-                                _ImageContent(artifact: widget.artifact)
-                              else if (widget.artifact.content != null)
-                                ReaderContent(
-                                  html: widget.artifact.content!,
-                                  baseUrl: widget.artifact.sourceUrl,
-                                )
-                              else
+                    // Article content
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 720),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 32,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Article title
                                 Text(
-                                  'No content available',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        color: isDark
-                                            ? ReaderTheme.darkTextSecondary
-                                            : ReaderTheme.lightTextSecondary,
-                                      ),
+                                  widget.artifact.title,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.displayLarge,
                                 ),
 
-                              const SizedBox(height: 64),
-                            ],
+                                const SizedBox(height: 16),
+
+                                // Metadata
+                                if (widget.artifact.sourceUrl != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      Uri.parse(
+                                        widget.artifact.sourceUrl!,
+                                      ).host,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: isDark
+                                                ? ReaderTheme.darkTextSecondary
+                                                : ReaderTheme
+                                                      .lightTextSecondary,
+                                          ),
+                                    ),
+                                  ),
+
+                                // Reading time and date
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 14,
+                                      color: isDark
+                                          ? ReaderTheme.darkTextSecondary
+                                          : ReaderTheme.lightTextSecondary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _formatDate(widget.artifact.createdAt!),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: isDark
+                                                ? ReaderTheme.darkTextSecondary
+                                                : ReaderTheme
+                                                      .lightTextSecondary,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 32),
+
+                                Divider(
+                                  color: isDark
+                                      ? ReaderTheme.darkBorder
+                                      : ReaderTheme.lightBorder,
+                                ),
+
+                                // Inline Graph
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final linkService = ref.watch(
+                                      linkServiceProvider,
+                                    );
+                                    return FutureBuilder<List<List<dynamic>>>(
+                                      future: Future.wait([
+                                        linkService
+                                            .getOutgoingLinksWithArtifacts(
+                                              widget.artifact.id,
+                                            ),
+                                        linkService
+                                            .getIncomingLinksWithArtifacts(
+                                              widget.artifact.id,
+                                            ),
+                                      ]),
+                                      builder: (context, snapshot) {
+                                        if (!snapshot.hasData)
+                                          return const SizedBox.shrink();
+
+                                        final outgoing =
+                                            snapshot.data![0]
+                                                as List<
+                                                  ({
+                                                    ArtifactLink link,
+                                                    Artifact artifact,
+                                                  })
+                                                >;
+                                        final incoming =
+                                            snapshot.data![1]
+                                                as List<
+                                                  ({
+                                                    ArtifactLink link,
+                                                    Artifact artifact,
+                                                  })
+                                                >;
+                                        final allLinks = [
+                                          ...outgoing,
+                                          ...incoming,
+                                        ];
+
+                                        if (allLinks.isEmpty)
+                                          return const SizedBox.shrink();
+
+                                        return Column(
+                                          children: [
+                                            const SizedBox(height: 24),
+                                            InlineGraphWidget(
+                                              centerArtifact: widget.artifact,
+                                              connectedArtifacts: allLinks,
+                                              height: 200,
+                                              onArtifactTap: (artifact) {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        ReaderScreen(
+                                                          artifact: artifact,
+                                                        ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            const SizedBox(height: 24),
+                                            Divider(
+                                              color: isDark
+                                                  ? ReaderTheme.darkBorder
+                                                  : ReaderTheme.lightBorder,
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+
+                                const SizedBox(height: 32),
+
+                                // Content with Highlights
+                                FutureBuilder(
+                                  future: highlightService
+                                      .getHighlightsForArtifact(
+                                        widget.artifact.id,
+                                      ),
+                                  builder: (context, snapshot) {
+                                    final highlights = snapshot.data ?? [];
+
+                                    if (widget.artifact.type ==
+                                        ArtifactType.quote)
+                                      return _QuoteContent(
+                                        artifact: widget.artifact,
+                                      );
+                                    else if (widget.artifact.type ==
+                                        ArtifactType.note)
+                                      return _NoteContent(
+                                        artifact: widget.artifact,
+                                      );
+                                    else if (widget.artifact.type ==
+                                        ArtifactType.image)
+                                      return _ImageContent(
+                                        artifact: widget.artifact,
+                                      );
+                                    else if (widget.artifact.content != null) {
+                                      // Inject highlights
+                                      final contentWithHighlights =
+                                          highlightService.injectHighlights(
+                                            widget.artifact.content!,
+                                            highlights,
+                                          );
+
+                                      return ReaderContent(
+                                        html: contentWithHighlights,
+                                        baseUrl: widget.artifact.sourceUrl,
+                                        onHighlightTap: (id) =>
+                                            _showHighlightOptions(
+                                              context,
+                                              id,
+                                              highlightService,
+                                            ),
+                                      );
+                                    } else {
+                                      return Text(
+                                        'No content available',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyLarge
+                                            ?.copyWith(
+                                              color: isDark
+                                                  ? ReaderTheme
+                                                        .darkTextSecondary
+                                                  : ReaderTheme
+                                                        .lightTextSecondary,
+                                            ),
+                                      );
+                                    }
+                                  },
+                                ),
+
+                                const SizedBox(height: 64),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-              // Toolbar overlay
-              if (_showToolbar)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: ReaderToolbar(artifact: widget.artifact),
+                  ],
                 ),
-            ],
+
+                // Toolbar overlay
+                if (_showToolbar)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: ReaderToolbar(artifact: widget.artifact),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showHighlightOptions(
+    BuildContext context,
+    int highlightId,
+    HighlightService service,
+  ) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Highlight'),
+                textColor: Colors.red,
+                onTap: () {
+                  Navigator.pop(context);
+                  service.removeHighlight(highlightId).then((_) {
+                    if (mounted) {
+                      setState(() {}); // Refresh content
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Highlight removed')),
+                      );
+                    }
+                  });
+                },
+              ),
+              // We can add "Add Note" here later
+            ],
+          ),
+        );
+      },
     );
   }
 

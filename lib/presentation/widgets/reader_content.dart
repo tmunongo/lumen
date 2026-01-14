@@ -6,8 +6,14 @@ import 'package:lumen/presentation/theme/reader_theme.dart';
 class ReaderContent extends StatelessWidget {
   final String html;
   final String? baseUrl;
+  final Function(int)? onHighlightTap;
 
-  const ReaderContent({required this.html, this.baseUrl, super.key});
+  const ReaderContent({
+    required this.html, 
+    this.baseUrl, 
+    this.onHighlightTap,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +28,32 @@ class ReaderContent extends StatelessWidget {
       data: html,
       extensions: [
         TagExtension(
+          tagsToExtend: {'mark'},
+          builder: (extensionContext) {
+            final id = extensionContext.attributes['data-id'];
+            // We need to render the content of the mark
+             return GestureDetector(
+              onTap: () {
+                if (id != null && onHighlightTap != null) {
+                  onHighlightTap!(int.tryParse(id) ?? -1);
+                }
+              },
+              child: Text.rich(
+                TextSpan(
+                   text: extensionContext.element!.text,
+                   style: TextStyle(
+                     backgroundColor: extensionContext.style?.backgroundColor ?? Colors.yellow,
+                     color: textColor,
+                   ),
+                ),
+              ),
+            );
+          },
+        ),
+        TagExtension(
           tagsToExtend: {'img'},
           builder: (extensionContext) {
+// ... (existing img handler)
             final src = extensionContext.attributes['src'];
             if (src == null || src.isEmpty) {
               return const SizedBox.shrink();
