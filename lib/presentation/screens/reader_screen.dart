@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,8 +9,15 @@ import 'package:lumen/presentation/widgets/reader_toolbar.dart';
 
 class ReaderScreen extends ConsumerStatefulWidget {
   final Artifact artifact;
+  final bool showBackButton;
+  final VoidCallback? onBack;
 
-  const ReaderScreen({required this.artifact, super.key});
+  const ReaderScreen({
+    required this.artifact,
+    this.showBackButton = true,
+    this.onBack,
+    super.key,
+  });
 
   @override
   ConsumerState<ReaderScreen> createState() => _ReaderScreenState();
@@ -87,10 +95,12 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                     snap: true,
                     elevation: 0,
                     backgroundColor: Colors.transparent,
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.pop(context),
-                    ),
+                    leading: widget.showBackButton
+                        ? IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: widget.onBack ?? () => Navigator.pop(context),
+                          )
+                        : null,
                     actions: [
                       IconButton(
                         icon: Icon(
@@ -175,6 +185,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 _QuoteContent(artifact: widget.artifact)
                               else if (widget.artifact.type == ArtifactType.note)
                                 _NoteContent(artifact: widget.artifact)
+                              else if (widget.artifact.type == ArtifactType.image)
+                                _ImageContent(artifact: widget.artifact)
                               else if (widget.artifact.content != null)
                                 ReaderContent(
                                   html: widget.artifact.content!,
@@ -303,6 +315,32 @@ class _NoteContent extends StatelessWidget {
     return Text(
       artifact.content ?? '',
       style: Theme.of(context).textTheme.bodyLarge,
+    );
+  }
+}
+
+class _ImageContent extends StatelessWidget {
+  final Artifact artifact;
+
+  const _ImageContent({required this.artifact});
+
+  @override
+  Widget build(BuildContext context) {
+    if (artifact.localAssetPath == null) {
+      return const Center(child: Text('Image file not found'));
+    }
+
+    return Center(
+      child: InteractiveViewer(
+        maxScale: 4.0,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            File(artifact.localAssetPath!),
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 }

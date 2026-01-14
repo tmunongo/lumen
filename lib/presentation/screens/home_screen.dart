@@ -64,7 +64,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             // Sidebar
             Container(
-              width: 320,
+              width: 260,
               decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
@@ -326,7 +326,7 @@ class _WelcomePanel extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
         child: Padding(
-          padding: const EdgeInsets.all(48),
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -391,10 +391,11 @@ class _ShortcutHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: Theme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         children: [
