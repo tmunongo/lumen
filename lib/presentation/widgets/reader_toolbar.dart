@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/presentation/screens/relationship_screen.dart';
 import 'package:lumen/presentation/theme/reader_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -7,6 +8,18 @@ class ReaderToolbar extends StatelessWidget {
   final Artifact artifact;
 
   const ReaderToolbar({required this.artifact, super.key});
+
+  void _showRelationships(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RelationshipsScreen(
+          projectId: artifact.projectId,
+          initialArtifact: artifact,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +70,11 @@ class ReaderToolbar extends StatelessWidget {
                     const SnackBar(content: Text('Quote creation coming soon')),
                   );
                 },
+              ),
+              _ToolbarButton(
+                icon: Icons.hub,
+                label: 'Related',
+                onPressed: () => _showRelationships(context),
               ),
               if (artifact.sourceUrl != null)
                 _ToolbarButton(

@@ -75,7 +75,7 @@ class ReaderContent extends StatelessWidget {
         'a': Style(
           color: linkColor,
           textDecoration: TextDecoration.underline,
-          textDecorationColor: linkColor.withOpacity(0.4),
+          textDecorationColor: linkColor.withValues(alpha: .4),
         ),
         'strong, b': Style(fontWeight: FontWeight.w700),
         'em, i': Style(fontStyle: FontStyle.italic),

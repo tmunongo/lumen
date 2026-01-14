@@ -45,6 +45,10 @@ dependencies:
   flutter_html: ^3.0.0
   google_fonts: ^7.0.1
   url_launcher: ^6.3.2
+  file_picker: ^10.3.8
+  path: ^1.9.1
+  desktop_drop: ^0.7.0
+  window_manager: ^0.5.1
 
 dev_dependencies:
   flutter_test:

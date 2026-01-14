@@ -171,7 +171,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               const SizedBox(height: 32),
 
                               // Content
-                              if (widget.artifact.content != null)
+                              if (widget.artifact.type == ArtifactType.quote)
+                                _QuoteContent(artifact: widget.artifact)
+                              else if (widget.artifact.type == ArtifactType.note)
+                                _NoteContent(artifact: widget.artifact)
+                              else if (widget.artifact.content != null)
                                 ReaderContent(
                                   html: widget.artifact.content!,
                                   baseUrl: widget.artifact.sourceUrl,
@@ -179,8 +183,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               else
                                 Text(
                                   'No content available',
-                                  style: Theme.of(context).textTheme.bodyLarge
-                                      ?.copyWith(
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                         color: isDark
                                             ? ReaderTheme.darkTextSecondary
                                             : ReaderTheme.lightTextSecondary,
@@ -235,5 +238,71 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+}
+
+class _QuoteContent extends StatelessWidget {
+  final Artifact artifact;
+
+  const _QuoteContent({required this.artifact});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? ReaderTheme.darkSurface : ReaderTheme.lightSurface,
+        border: Border(
+          left: BorderSide(
+            color: isDark ? ReaderTheme.darkAccent : ReaderTheme.lightAccent,
+            width: 4,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.format_quote,
+            size: 32,
+            color: isDark
+                ? ReaderTheme.darkTextSecondary
+                : ReaderTheme.lightTextSecondary,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            artifact.content ?? '',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '— ${artifact.attribution}',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: isDark
+                  ? ReaderTheme.darkTextSecondary
+                  : ReaderTheme.lightTextSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoteContent extends StatelessWidget {
+  final Artifact artifact;
+
+  const _NoteContent({required this.artifact});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      artifact.content ?? '',
+      style: Theme.of(context).textTheme.bodyLarge,
+    );
   }
 }

@@ -1,0 +1,544 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lumen/application/providers.dart';
+import 'package:lumen/application/services/relationship_service.dart';
+import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/models/artifact_relationship.dart';
+
+class RelationshipsScreen extends ConsumerStatefulWidget {
+  final int projectId;
+  final Artifact? initialArtifact;
+
+  const RelationshipsScreen({
+    required this.projectId,
+    this.initialArtifact,
+    super.key,
+  });
+
+  @override
+  ConsumerState<RelationshipsScreen> createState() =>
+      _RelationshipsScreenState();
+}
+
+class _RelationshipsScreenState extends ConsumerState<RelationshipsScreen> {
+  Artifact? _selectedArtifact;
+  bool _showNetworkView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedArtifact = widget.initialArtifact;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final artifactRepo = ref.watch(artifactRepositoryProvider);
+    final relationshipService = ref.watch(relationshipServiceProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Relationships'),
+        actions: [
+          IconButton(
+            icon: Icon(_showNetworkView ? Icons.list : Icons.hub),
+            tooltip: _showNetworkView ? 'List View' : 'Network View',
+            onPressed: () {
+              setState(() => _showNetworkView = !_showNetworkView);
+            },
+          ),
+        ],
+      ),
+      body: FutureBuilder<List<Artifact>>(
+        future: artifactRepo.findByProject(widget.projectId),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final artifacts = snapshot.data!;
+
+          if (artifacts.isEmpty) {
+            return const Center(child: Text('No artifacts in this project'));
+          }
+
+          if (_selectedArtifact == null) {
+            return _ArtifactSelector(
+              artifacts: artifacts,
+              onSelect: (artifact) {
+                setState(() => _selectedArtifact = artifact);
+              },
+            );
+          }
+
+          if (_showNetworkView) {
+            return _NetworkView(
+              anchor: _selectedArtifact!,
+              artifacts: artifacts,
+              relationshipService: relationshipService,
+              onArtifactTap: (artifact) {
+                setState(() => _selectedArtifact = artifact);
+              },
+              onBack: () {
+                setState(() => _selectedArtifact = null);
+              },
+            );
+          }
+
+          return _RelationshipView(
+            anchor: _selectedArtifact!,
+            artifacts: artifacts,
+            relationshipService: relationshipService,
+            onArtifactTap: (artifact) {
+              setState(() => _selectedArtifact = artifact);
+            },
+            onBack: () {
+              setState(() => _selectedArtifact = null);
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ArtifactSelector extends StatelessWidget {
+  final List<Artifact> artifacts;
+  final Function(Artifact) onSelect;
+
+  const _ArtifactSelector({required this.artifacts, required this.onSelect});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Select an artifact to explore its relationships',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            itemCount: artifacts.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final artifact = artifacts[index];
+              return ListTile(
+                leading: _getIcon(artifact),
+                title: Text(artifact.title),
+                subtitle: artifact.tags.isNotEmpty
+                    ? Text('Tags: ${artifact.tags.join(", ")}')
+                    : null,
+                onTap: () => onSelect(artifact),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _getIcon(Artifact artifact) {
+    IconData icon;
+    switch (artifact.type) {
+      case ArtifactType.webPage:
+        icon = Icons.article;
+      case ArtifactType.rawLink:
+        icon = Icons.link;
+      case ArtifactType.note:
+        icon = Icons.note;
+      case ArtifactType.quote:
+        icon = Icons.format_quote;
+      case ArtifactType.image:
+        icon = Icons.image;
+    }
+    return Icon(icon);
+  }
+}
+
+class _RelationshipView extends StatelessWidget {
+  final Artifact anchor;
+  final List<Artifact> artifacts;
+  final RelationshipService relationshipService;
+  final Function(Artifact) onArtifactTap;
+  final VoidCallback onBack;
+
+  const _RelationshipView({
+    required this.anchor,
+    required this.artifacts,
+    required this.relationshipService,
+    required this.onArtifactTap,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cluster = relationshipService.findRelatedArtifacts(anchor, artifacts);
+    final suggestions = relationshipService.suggestTags(anchor, artifacts);
+
+    return Column(
+      children: [
+        // Anchor artifact card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: onBack,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      anchor.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (anchor.tags.isNotEmpty)
+                Wrap(
+                  spacing: 8,
+                  children: anchor.tags.map((tag) {
+                    return Chip(
+                      label: Text(tag),
+                      visualDensity: VisualDensity.compact,
+                    );
+                  }).toList(),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                '${cluster.totalRelated} related artifacts',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+
+        // Suggested tags
+        if (suggestions.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Suggested tags',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: suggestions.map((tag) {
+                    return ActionChip(
+                      label: Text(tag),
+                      avatar: const Icon(Icons.add, size: 16),
+                      onPressed: () {
+                        // TODO: Add tag to artifact
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Add tag "$tag" (coming soon)'),
+                          ),
+                        );
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+
+        // Related artifacts list
+        Expanded(
+          child: cluster.totalRelated == 0
+              ? Center(
+                  child: Text(
+                    'No related artifacts found',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).hintColor,
+                    ),
+                  ),
+                )
+              : ListView(
+                  children: [
+                    if (cluster.strongRelationships.isNotEmpty) ...[
+                      _RelationshipSection(
+                        title: 'Strong Connections',
+                        relationships: cluster.strongRelationships,
+                        onTap: onArtifactTap,
+                      ),
+                    ],
+                    if (cluster.mediumRelationships.isNotEmpty) ...[
+                      _RelationshipSection(
+                        title: 'Medium Connections',
+                        relationships: cluster.mediumRelationships,
+                        onTap: onArtifactTap,
+                      ),
+                    ],
+                    if (cluster.weakRelationships.isNotEmpty) ...[
+                      _RelationshipSection(
+                        title: 'Weak Connections',
+                        relationships: cluster.weakRelationships,
+                        onTap: onArtifactTap,
+                      ),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RelationshipSection extends StatelessWidget {
+  final String title;
+  final List<ArtifactRelationship> relationships;
+  final Function(Artifact) onTap;
+
+  const _RelationshipSection({
+    required this.title,
+    required this.relationships,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+        ),
+        ...relationships.map((rel) {
+          return ListTile(
+            leading: _getIcon(rel.target),
+            title: Text(rel.target.title),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Shared: ${rel.sharedTags.join(", ")}'),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(
+                  value: rel.strength,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
+                ),
+              ],
+            ),
+            trailing: Text(
+              '${(rel.strength * 100).round()}%',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            onTap: () => onTap(rel.target),
+          );
+        }),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
+  Widget _getIcon(Artifact artifact) {
+    IconData icon;
+    switch (artifact.type) {
+      case ArtifactType.webPage:
+        icon = Icons.article;
+      case ArtifactType.rawLink:
+        icon = Icons.link;
+      case ArtifactType.note:
+        icon = Icons.note;
+      case ArtifactType.quote:
+        icon = Icons.format_quote;
+      case ArtifactType.image:
+        icon = Icons.image;
+    }
+    return Icon(icon);
+  }
+}
+
+class _NetworkView extends StatelessWidget {
+  final Artifact anchor;
+  final List<Artifact> artifacts;
+  final RelationshipService relationshipService;
+  final Function(Artifact) onArtifactTap;
+  final VoidCallback onBack;
+
+  const _NetworkView({
+    required this.anchor,
+    required this.artifacts,
+    required this.relationshipService,
+    required this.onArtifactTap,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final network = relationshipService.findConnectedNetwork(anchor, artifacts);
+    final bridges = relationshipService
+        .findBridgeArtifacts(artifacts)
+        .where((a) => network.contains(a))
+        .toList();
+
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Connected Network',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    Text(
+                      '${network.length} artifacts in this cluster',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Bridge artifacts section
+        if (bridges.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.hub, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Bridge Artifacts',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'These artifacts connect different topic areas',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+
+        // Network list
+        Expanded(
+          child: ListView.separated(
+            itemCount: network.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final artifact = network[index];
+              final isBridge = bridges.contains(artifact);
+              final isAnchor = artifact.id == anchor.id;
+
+              return ListTile(
+                leading: Stack(
+                  children: [
+                    _getIcon(artifact),
+                    if (isBridge)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                title: Text(
+                  artifact.title,
+                  style: isAnchor
+                      ? TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        )
+                      : null,
+                ),
+                subtitle: artifact.tags.isNotEmpty
+                    ? Text('Tags: ${artifact.tags.join(", ")}')
+                    : null,
+                trailing: isAnchor ? const Icon(Icons.star) : null,
+                onTap: () => onArtifactTap(artifact),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _getIcon(Artifact artifact) {
+    IconData icon;
+    switch (artifact.type) {
+      case ArtifactType.webPage:
+        icon = Icons.article;
+      case ArtifactType.rawLink:
+        icon = Icons.link;
+      case ArtifactType.note:
+        icon = Icons.note;
+      case ArtifactType.quote:
+        icon = Icons.format_quote;
+      case ArtifactType.image:
+        icon = Icons.image;
+    }
+    return Icon(icon);
+  }
+}

@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
+import 'package:lumen/application/services/artifact_service.dart';
 import 'package:lumen/application/services/ingestion_service.dart';
 import 'package:lumen/application/services/project_service.dart';
+import 'package:lumen/application/services/relationship_service.dart';
 import 'package:lumen/domain/entities/project.dart';
 import 'package:lumen/domain/repositories/artifact_repository.dart';
 import 'package:lumen/domain/repositories/project_repository.dart';
@@ -72,4 +74,15 @@ final ingestionServiceProvider = Provider<IngestionService>((ref) {
     extractor: ref.watch(contentExtractorProvider),
     sanitizer: ref.watch(htmlSanitizerProvider),
   );
+});
+
+final artifactServiceProvider = Provider<ArtifactService>((ref) {
+  return ArtifactService(
+    artifactRepository: ref.watch(artifactRepositoryProvider),
+    tagRepository: ref.watch(tagRepositoryProvider),
+  );
+});
+
+final relationshipServiceProvider = Provider<RelationshipService>((ref) {
+  return RelationshipService();
 });

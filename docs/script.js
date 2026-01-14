@@ -16,7 +16,7 @@ document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
 async function updateDownloadLinks() {
   try {
     const response = await fetch(
-      "https://api.github.com/repos/yourusername/research-workspace/releases/latest"
+      "https://api.github.com/repos/tmunongo/lumen/releases/latest"
     );
     const data = await response.json();
 
