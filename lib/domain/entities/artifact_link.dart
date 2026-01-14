@@ -2,6 +2,16 @@ import 'package:isar/isar.dart';
 
 part 'artifact_link.g.dart';
 
+/// Types of relationships between artifacts
+enum LinkType {
+  related,     // General connection (default)
+  supports,    // Evidence or supporting material
+  contradicts, // Conflicting information
+  background,  // Prerequisite/context reading
+  quotes,      // Source of a quote
+  dependsOn,   // Technical dependency
+}
+
 /// Explicit link between two artifacts.
 /// Links are directional but the system treats them as bidirectional
 /// by querying both outgoing and incoming links.
@@ -21,6 +31,10 @@ class ArtifactLink {
   @Index()
   late int projectId;
 
+  /// Type of relationship
+  @Enumerated(EnumType.name)
+  LinkType type = LinkType.related;
+
   DateTime? createdAt;
 
   /// Optional note explaining why this link exists
@@ -30,6 +44,7 @@ class ArtifactLink {
     required this.sourceArtifactId,
     required this.targetArtifactId,
     required this.projectId,
+    this.type = LinkType.related,
     this.note,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -44,4 +59,23 @@ class ArtifactLink {
 
   @override
   int get hashCode => sourceArtifactId.hashCode ^ targetArtifactId.hashCode;
+
+  /// Get human-readable label for this link type
+  String get typeLabel {
+    switch (type) {
+      case LinkType.related:
+        return 'Related';
+      case LinkType.supports:
+        return 'Supports';
+      case LinkType.contradicts:
+        return 'Contradicts';
+      case LinkType.background:
+        return 'Background';
+      case LinkType.quotes:
+        return 'Quotes';
+      case LinkType.dependsOn:
+        return 'Depends On';
+    }
+  }
 }
+

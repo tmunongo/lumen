@@ -20,6 +20,7 @@ class LinkService {
     int sourceId,
     int targetId,
     int projectId, {
+    LinkType type = LinkType.related,
     String? note,
   }) async {
     // Prevent self-linking
@@ -36,6 +37,7 @@ class LinkService {
       sourceArtifactId: sourceId,
       targetArtifactId: targetId,
       projectId: projectId,
+      type: type,
       note: note,
     );
 
@@ -65,6 +67,22 @@ class LinkService {
     return artifacts;
   }
 
+  /// Get outgoing links paired with their target artifacts
+  Future<List<({ArtifactLink link, Artifact artifact})>> getOutgoingLinksWithArtifacts(
+    int artifactId,
+  ) async {
+    final links = await _linkRepository.findOutgoingLinks(artifactId);
+    final result = <({ArtifactLink link, Artifact artifact})>[];
+
+    for (final link in links) {
+      final artifact = await _artifactRepository.findById(link.targetArtifactId);
+      if (artifact != null) {
+        result.add((link: link, artifact: artifact));
+      }
+    }
+    return result;
+  }
+
   /// Get all artifacts linking TO this artifact (backlinks/incoming)
   Future<List<Artifact>> getBacklinks(int artifactId) async {
     final links = await _linkRepository.findIncomingLinks(artifactId);
@@ -78,6 +96,22 @@ class LinkService {
     }
 
     return artifacts;
+  }
+
+  /// Get incoming links paired with their source artifacts
+  Future<List<({ArtifactLink link, Artifact artifact})>> getIncomingLinksWithArtifacts(
+    int artifactId,
+  ) async {
+    final links = await _linkRepository.findIncomingLinks(artifactId);
+    final result = <({ArtifactLink link, Artifact artifact})>[];
+
+    for (final link in links) {
+      final artifact = await _artifactRepository.findById(link.sourceArtifactId);
+      if (artifact != null) {
+        result.add((link: link, artifact: artifact));
+      }
+    }
+    return result;
   }
 
   /// Get all linked artifacts (both directions combined, deduplicated)

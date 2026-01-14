@@ -256,5 +256,80 @@ void main() {
       expect(link, isNotNull);
       expect(link!.note, 'Reference for context');
     });
+    test('creates link with specific type', () async {
+      final link = await linkService.createLink(
+        1,
+        2,
+        1,
+        type: LinkType.supports,
+      );
+
+      expect(link, isNotNull);
+      expect(link!.type, LinkType.supports);
+    });
+
+    test('validates link type labels', () {
+      final link = ArtifactLink(
+        sourceArtifactId: 1,
+        targetArtifactId: 2,
+        projectId: 1,
+        type: LinkType.contradicts,
+      );
+      expect(link.typeLabel, 'Contradicts');
+    });
+
+    test('gets outgoing links with artifacts', () async {
+      final artifact1 = Artifact(
+        projectId: 1,
+        type: ArtifactType.note,
+        title: 'Source',
+      );
+      artifact1.id = 1;
+
+      final artifact2 = Artifact(
+        projectId: 1,
+        type: ArtifactType.note,
+        title: 'Target',
+      );
+      artifact2.id = 2;
+
+      mockArtifactRepo.addArtifact(artifact1);
+      mockArtifactRepo.addArtifact(artifact2);
+
+      await linkService.createLink(1, 2, 1, type: LinkType.supports);
+      
+      final results = await linkService.getOutgoingLinksWithArtifacts(1);
+
+      expect(results.length, 1);
+      expect(results.first.artifact.id, 2);
+      expect(results.first.link.type, LinkType.supports);
+    });
+
+    test('gets incoming links (backlinks) with artifacts', () async {
+      final artifact1 = Artifact(
+        projectId: 1,
+        type: ArtifactType.note,
+        title: 'Source',
+      );
+      artifact1.id = 1;
+
+      final artifact2 = Artifact(
+        projectId: 1,
+        type: ArtifactType.note,
+        title: 'Target',
+      );
+      artifact2.id = 2;
+
+      mockArtifactRepo.addArtifact(artifact1);
+      mockArtifactRepo.addArtifact(artifact2);
+
+      await linkService.createLink(1, 2, 1, type: LinkType.dependsOn);
+      
+      final results = await linkService.getIncomingLinksWithArtifacts(2);
+
+      expect(results.length, 1);
+      expect(results.first.artifact.id, 1); // Source is 1
+      expect(results.first.link.type, LinkType.dependsOn);
+    });
   });
 }

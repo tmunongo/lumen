@@ -47,27 +47,28 @@ class ReaderToolbar extends ConsumerWidget {
   }
 
   void _createLink(BuildContext context, WidgetRef ref) async {
-    final targetArtifact = await ArtifactPickerDialog.show(
+    final result = await ArtifactPickerDialog.show(
       context,
       projectId: artifact.projectId,
       excludeArtifactId: artifact.id,
     );
 
-    if (targetArtifact == null) return;
+    if (result == null) return;
 
     final linkService = ref.read(linkServiceProvider);
     
     try {
       final link = await linkService.createLink(
         artifact.id,
-        targetArtifact.id,
+        result.artifact.id,
         artifact.projectId,
+        type: result.type,
       );
 
       if (context.mounted) {
         if (link != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Linked to "${targetArtifact.title}"')),
+            SnackBar(content: Text('Linked to "${result.artifact.title}" as ${link.typeLabel}')),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

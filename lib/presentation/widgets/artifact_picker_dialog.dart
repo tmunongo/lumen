@@ -2,8 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/entities/artifact_link.dart';
 
-/// Dialog for selecting an artifact to link to
+/// Result of the artifact picker dialog
+class LinkPickerResult {
+  final Artifact artifact;
+  final LinkType type;
+
+  LinkPickerResult({required this.artifact, required this.type});
+}
+
+/// Dialog for selecting an artifact to link to with relationship type
 class ArtifactPickerDialog extends ConsumerStatefulWidget {
   final int projectId;
   final int? excludeArtifactId;
@@ -14,12 +23,12 @@ class ArtifactPickerDialog extends ConsumerStatefulWidget {
     super.key,
   });
 
-  static Future<Artifact?> show(
+  static Future<LinkPickerResult?> show(
     BuildContext context, {
     required int projectId,
     int? excludeArtifactId,
   }) {
-    return showDialog<Artifact>(
+    return showDialog<LinkPickerResult>(
       context: context,
       builder: (context) => ArtifactPickerDialog(
         projectId: projectId,
@@ -36,6 +45,7 @@ class ArtifactPickerDialog extends ConsumerStatefulWidget {
 class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  LinkType _selectedType = LinkType.related;
 
   @override
   void dispose() {
@@ -58,13 +68,47 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
     }
   }
 
+  IconData _getLinkTypeIcon(LinkType type) {
+    switch (type) {
+      case LinkType.related:
+        return Icons.link;
+      case LinkType.supports:
+        return Icons.thumb_up_outlined;
+      case LinkType.contradicts:
+        return Icons.thumb_down_outlined;
+      case LinkType.background:
+        return Icons.menu_book_outlined;
+      case LinkType.quotes:
+        return Icons.format_quote;
+      case LinkType.dependsOn:
+        return Icons.account_tree_outlined;
+    }
+  }
+
+  String _getLinkTypeLabel(LinkType type) {
+    switch (type) {
+      case LinkType.related:
+        return 'Related';
+      case LinkType.supports:
+        return 'Supports';
+      case LinkType.contradicts:
+        return 'Contradicts';
+      case LinkType.background:
+        return 'Background';
+      case LinkType.quotes:
+        return 'Quotes';
+      case LinkType.dependsOn:
+        return 'Depends On';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final artifactRepo = ref.watch(artifactRepositoryProvider);
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 650),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -88,6 +132,38 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Link type selector
+                  Text(
+                    'Relationship Type',
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: LinkType.values.map((type) {
+                        final isSelected = type == _selectedType;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            avatar: Icon(
+                              _getLinkTypeIcon(type),
+                              size: 18,
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.onPrimary
+                                  : null,
+                            ),
+                            label: Text(_getLinkTypeLabel(type)),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setState(() => _selectedType = type);
+                            },
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   // Search field
@@ -169,7 +245,13 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
                                 overflow: TextOverflow.ellipsis,
                               )
                             : null,
-                        onTap: () => Navigator.pop(context, artifact),
+                        onTap: () => Navigator.pop(
+                          context,
+                          LinkPickerResult(
+                            artifact: artifact,
+                            type: _selectedType,
+                          ),
+                        ),
                       );
                     },
                   );
@@ -182,3 +264,4 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
     );
   }
 }
+

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/application/services/relationship_service.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/entities/artifact_link.dart';
 import 'package:lumen/domain/models/artifact_relationship.dart';
 
 class RelationshipsScreen extends ConsumerStatefulWidget {
@@ -331,12 +332,12 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
         Expanded(
           child: FutureBuilder<List<List<dynamic>>>(
             future: Future.wait([
-              linkService.getOutgoingLinkedArtifacts(_currentAnchor.id),
-              linkService.getBacklinks(_currentAnchor.id),
+              linkService.getOutgoingLinksWithArtifacts(_currentAnchor.id),
+              linkService.getIncomingLinksWithArtifacts(_currentAnchor.id),
             ]),
             builder: (context, linkSnapshot) {
-              final outgoingLinks = linkSnapshot.data?[0] as List<Artifact>? ?? [];
-              final backlinks = linkSnapshot.data?[1] as List<Artifact>? ?? [];
+              final outgoingLinks = linkSnapshot.data?[0] as List<({ArtifactLink link, Artifact artifact})>? ?? [];
+              final backlinks = linkSnapshot.data?[1] as List<({ArtifactLink link, Artifact artifact})>? ?? [];
               
               final hasExplicitLinks = outgoingLinks.isNotEmpty || backlinks.isNotEmpty;
               final hasTagRelations = cluster.totalRelated > 0;
@@ -359,9 +360,9 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
                     _ExplicitLinkSection(
                       title: 'Linked To',
                       icon: Icons.arrow_forward,
-                      artifacts: outgoingLinks,
+                      links: outgoingLinks,
                       onTap: widget.onArtifactTap,
-                      onRemove: (artifact) => _removeLink(_currentAnchor.id, artifact.id),
+                      onRemove: (link) => _removeLink(link.sourceArtifactId, link.targetArtifactId),
                     ),
                   ],
                   
@@ -370,7 +371,7 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
                     _ExplicitLinkSection(
                       title: 'Backlinks',
                       icon: Icons.arrow_back,
-                      artifacts: backlinks,
+                      links: backlinks,
                       onTap: widget.onArtifactTap,
                       isBacklink: true,
                     ),
@@ -434,15 +435,15 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
 class _ExplicitLinkSection extends StatelessWidget {
   final String title;
   final IconData icon;
-  final List<Artifact> artifacts;
+  final List<({ArtifactLink link, Artifact artifact})> links;
   final Function(Artifact) onTap;
-  final Function(Artifact)? onRemove;
+  final Function(ArtifactLink)? onRemove;
   final bool isBacklink;
 
   const _ExplicitLinkSection({
     required this.title,
     required this.icon,
-    required this.artifacts,
+    required this.links,
     required this.onTap,
     this.onRemove,
     this.isBacklink = false,
@@ -476,7 +477,7 @@ class _ExplicitLinkSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  '${artifacts.length}',
+                  '${links.length}',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimary,
                   ),
@@ -485,22 +486,47 @@ class _ExplicitLinkSection extends StatelessWidget {
             ],
           ),
         ),
-        ...artifacts.map((artifact) {
+        ...links.map((pair) {
+          final artifact = pair.artifact;
+          final link = pair.link;
           return ListTile(
             leading: _getIcon(artifact),
             title: Text(artifact.title),
-            subtitle: artifact.tags.isNotEmpty
-                ? Text(
-                    artifact.tags.join(', '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                : null,
+            subtitle: Row(
+              children: [
+                Icon(
+                  _getLinkTypeIcon(link.type),
+                  size: 14,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  link.typeLabel,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (artifact.tags.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text('•', style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      artifact.tags.join(', '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ],
+            ),
             trailing: onRemove != null && !isBacklink
                 ? IconButton(
                     icon: const Icon(Icons.link_off, size: 20),
                     tooltip: 'Remove link',
-                    onPressed: () => onRemove!(artifact),
+                    onPressed: () => onRemove!(link),
                   )
                 : isBacklink
                     ? const Tooltip(
@@ -531,6 +557,23 @@ class _ExplicitLinkSection extends StatelessWidget {
         iconData = Icons.image;
     }
     return Icon(iconData);
+  }
+
+  IconData _getLinkTypeIcon(LinkType type) {
+    switch (type) {
+      case LinkType.related:
+        return Icons.link;
+      case LinkType.supports:
+        return Icons.thumb_up_outlined;
+      case LinkType.contradicts:
+        return Icons.thumb_down_outlined;
+      case LinkType.background:
+        return Icons.menu_book_outlined;
+      case LinkType.quotes:
+        return Icons.format_quote;
+      case LinkType.dependsOn:
+        return Icons.account_tree_outlined;
+    }
   }
 }
 

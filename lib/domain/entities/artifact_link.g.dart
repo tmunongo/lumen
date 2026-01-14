@@ -46,6 +46,17 @@ const ArtifactLinkSchema = CollectionSchema(
       id: 5,
       name: r'targetArtifactId',
       type: IsarType.long,
+    ),
+    r'type': PropertySchema(
+      id: 6,
+      name: r'type',
+      type: IsarType.string,
+      enumMap: _ArtifactLinktypeEnumValueMap,
+    ),
+    r'typeLabel': PropertySchema(
+      id: 7,
+      name: r'typeLabel',
+      type: IsarType.string,
     )
   },
   estimateSize: _artifactLinkEstimateSize,
@@ -114,6 +125,8 @@ int _artifactLinkEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  bytesCount += 3 + object.type.name.length * 3;
+  bytesCount += 3 + object.typeLabel.length * 3;
   return bytesCount;
 }
 
@@ -129,6 +142,8 @@ void _artifactLinkSerialize(
   writer.writeLong(offsets[3], object.projectId);
   writer.writeLong(offsets[4], object.sourceArtifactId);
   writer.writeLong(offsets[5], object.targetArtifactId);
+  writer.writeString(offsets[6], object.type.name);
+  writer.writeString(offsets[7], object.typeLabel);
 }
 
 ArtifactLink _artifactLinkDeserialize(
@@ -143,6 +158,8 @@ ArtifactLink _artifactLinkDeserialize(
     projectId: reader.readLong(offsets[3]),
     sourceArtifactId: reader.readLong(offsets[4]),
     targetArtifactId: reader.readLong(offsets[5]),
+    type: _ArtifactLinktypeValueEnumMap[reader.readStringOrNull(offsets[6])] ??
+        LinkType.related,
   );
   object.id = id;
   return object;
@@ -167,10 +184,32 @@ P _artifactLinkDeserializeProp<P>(
       return (reader.readLong(offset)) as P;
     case 5:
       return (reader.readLong(offset)) as P;
+    case 6:
+      return (_ArtifactLinktypeValueEnumMap[reader.readStringOrNull(offset)] ??
+          LinkType.related) as P;
+    case 7:
+      return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
+
+const _ArtifactLinktypeEnumValueMap = {
+  r'related': r'related',
+  r'supports': r'supports',
+  r'contradicts': r'contradicts',
+  r'background': r'background',
+  r'quotes': r'quotes',
+  r'dependsOn': r'dependsOn',
+};
+const _ArtifactLinktypeValueEnumMap = {
+  r'related': LinkType.related,
+  r'supports': LinkType.supports,
+  r'contradicts': LinkType.contradicts,
+  r'background': LinkType.background,
+  r'quotes': LinkType.quotes,
+  r'dependsOn': LinkType.dependsOn,
+};
 
 Id _artifactLinkGetId(ArtifactLink object) {
   return object.id;
@@ -1068,6 +1107,276 @@ extension ArtifactLinkQueryFilter
       ));
     });
   }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition> typeEqualTo(
+    LinkType value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'type',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeGreaterThan(
+    LinkType value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'type',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition> typeLessThan(
+    LinkType value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'type',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition> typeBetween(
+    LinkType lower,
+    LinkType upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'type',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'type',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition> typeEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'type',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition> typeContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'type',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition> typeMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'type',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'type',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'type',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'typeLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelGreaterThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'typeLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'typeLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelBetween(
+    String lower,
+    String upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'typeLabel',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'typeLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'typeLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'typeLabel',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'typeLabel',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'typeLabel',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterFilterCondition>
+      typeLabelIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'typeLabel',
+        value: '',
+      ));
+    });
+  }
 }
 
 extension ArtifactLinkQueryObject
@@ -1151,6 +1460,30 @@ extension ArtifactLinkQuerySortBy
       sortByTargetArtifactIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'targetArtifactId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> sortByType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> sortByTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> sortByTypeLabel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'typeLabel', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> sortByTypeLabelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'typeLabel', Sort.desc);
     });
   }
 }
@@ -1244,6 +1577,30 @@ extension ArtifactLinkQuerySortThenBy
       return query.addSortBy(r'targetArtifactId', Sort.desc);
     });
   }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> thenByType() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> thenByTypeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'type', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> thenByTypeLabel() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'typeLabel', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QAfterSortBy> thenByTypeLabelDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'typeLabel', Sort.desc);
+    });
+  }
 }
 
 extension ArtifactLinkQueryWhereDistinct
@@ -1284,6 +1641,20 @@ extension ArtifactLinkQueryWhereDistinct
       distinctByTargetArtifactId() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'targetArtifactId');
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QDistinct> distinctByType(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'type', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<ArtifactLink, ArtifactLink, QDistinct> distinctByTypeLabel(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'typeLabel', caseSensitive: caseSensitive);
     });
   }
 }
@@ -1329,6 +1700,18 @@ extension ArtifactLinkQueryProperty
   QueryBuilder<ArtifactLink, int, QQueryOperations> targetArtifactIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'targetArtifactId');
+    });
+  }
+
+  QueryBuilder<ArtifactLink, LinkType, QQueryOperations> typeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'type');
+    });
+  }
+
+  QueryBuilder<ArtifactLink, String, QQueryOperations> typeLabelProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'typeLabel');
     });
   }
 }
