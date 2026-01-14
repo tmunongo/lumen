@@ -157,7 +157,7 @@ class _ArtifactSelector extends StatelessWidget {
   }
 }
 
-class _RelationshipView extends StatelessWidget {
+class _RelationshipView extends ConsumerStatefulWidget {
   final Artifact anchor;
   final List<Artifact> artifacts;
   final RelationshipService relationshipService;
@@ -173,9 +173,72 @@ class _RelationshipView extends StatelessWidget {
   });
 
   @override
+  ConsumerState<_RelationshipView> createState() => _RelationshipViewState();
+}
+
+class _RelationshipViewState extends ConsumerState<_RelationshipView> {
+  late Artifact _currentAnchor;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentAnchor = widget.anchor;
+  }
+
+  @override
+  void didUpdateWidget(_RelationshipView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.anchor.id != widget.anchor.id) {
+      _currentAnchor = widget.anchor;
+    }
+  }
+
+  Future<void> _addTagToArtifact(String tag) async {
+    try {
+      final artifactService = ref.read(artifactServiceProvider);
+      final artifactRepo = ref.read(artifactRepositoryProvider);
+      
+      // Add the tag to the artifact
+      await artifactService.addTagsToArtifact(_currentAnchor, [tag]);
+      
+      // Refresh the artifact to get updated tags
+      final updatedArtifact = await artifactRepo.findById(_currentAnchor.id);
+      if (updatedArtifact != null) {
+        setState(() {
+          _currentAnchor = updatedArtifact;
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added tag "$tag" to ${_currentAnchor.title}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add tag: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cluster = relationshipService.findRelatedArtifacts(anchor, artifacts);
-    final suggestions = relationshipService.suggestTags(anchor, artifacts);
+    final cluster = widget.relationshipService.findRelatedArtifacts(
+      _currentAnchor,
+      widget.artifacts,
+    );
+    final suggestions = widget.relationshipService.suggestTags(
+      _currentAnchor,
+      widget.artifacts,
+    );
 
     return Column(
       children: [
@@ -198,22 +261,22 @@ class _RelationshipView extends StatelessWidget {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
-                    onPressed: onBack,
+                    onPressed: widget.onBack,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      anchor.title,
+                      _currentAnchor.title,
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              if (anchor.tags.isNotEmpty)
+              if (_currentAnchor.tags.isNotEmpty)
                 Wrap(
                   spacing: 8,
-                  children: anchor.tags.map((tag) {
+                  children: _currentAnchor.tags.map((tag) {
                     return Chip(
                       label: Text(tag),
                       visualDensity: VisualDensity.compact,
@@ -255,14 +318,7 @@ class _RelationshipView extends StatelessWidget {
                     return ActionChip(
                       label: Text(tag),
                       avatar: const Icon(Icons.add, size: 16),
-                      onPressed: () {
-                        // TODO: Add tag to artifact
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Add tag "$tag" (coming soon)'),
-                          ),
-                        );
-                      },
+                      onPressed: () => _addTagToArtifact(tag),
                     );
                   }).toList(),
                 ),
@@ -287,21 +343,21 @@ class _RelationshipView extends StatelessWidget {
                       _RelationshipSection(
                         title: 'Strong Connections',
                         relationships: cluster.strongRelationships,
-                        onTap: onArtifactTap,
+                        onTap: widget.onArtifactTap,
                       ),
                     ],
                     if (cluster.mediumRelationships.isNotEmpty) ...[
                       _RelationshipSection(
                         title: 'Medium Connections',
                         relationships: cluster.mediumRelationships,
-                        onTap: onArtifactTap,
+                        onTap: widget.onArtifactTap,
                       ),
                     ],
                     if (cluster.weakRelationships.isNotEmpty) ...[
                       _RelationshipSection(
                         title: 'Weak Connections',
                         relationships: cluster.weakRelationships,
-                        onTap: onArtifactTap,
+                        onTap: widget.onArtifactTap,
                       ),
                     ],
                   ],

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
@@ -52,9 +53,12 @@ class WebFetcher {
       }
 
       final contentType = response.headers['content-type'] ?? 'text/html';
+      
+      // Decode the response body as UTF-8 to handle special characters correctly
+      final content = utf8.decode(response.bodyBytes, allowMalformed: true);
 
       return WebFetchResult(
-        content: response.body,
+        content: content,
         statusCode: response.statusCode,
         contentType: contentType,
         finalUrl: response.request?.url ?? uri,

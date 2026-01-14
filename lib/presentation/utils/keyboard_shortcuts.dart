@@ -1,42 +1,47 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class KeyboardShortcuts {
-  static const newProject = SingleActivator(
+  // Helper to create platform-specific shortcuts
+  static bool get _isMacOS => Platform.isMacOS;
+  
+  static SingleActivator newProject = SingleActivator(
     LogicalKeyboardKey.keyN,
-    meta: true, // Command on macOS
-    control: true, // Ctrl on Windows/Linux
+    meta: _isMacOS,
+    control: !_isMacOS,
   );
 
-  static const newNote = SingleActivator(
+  static SingleActivator newNote = SingleActivator(
     LogicalKeyboardKey.keyN,
-    meta: true,
-    control: true,
+    meta: _isMacOS,
+    control: !_isMacOS,
     shift: true,
   );
 
-  static const search = SingleActivator(
+  static SingleActivator search = SingleActivator(
     LogicalKeyboardKey.keyF,
-    meta: true,
-    control: true,
+    meta: _isMacOS,
+    control: !_isMacOS,
   );
 
-  static const closeWindow = SingleActivator(
+  static SingleActivator closeWindow = SingleActivator(
     LogicalKeyboardKey.keyW,
-    meta: true,
-    control: true,
+    meta: _isMacOS,
+    control: !_isMacOS,
   );
 
-  static const openRelationships = SingleActivator(
+  static SingleActivator openRelationships = SingleActivator(
     LogicalKeyboardKey.keyR,
-    meta: true,
-    control: true,
+    meta: _isMacOS,
+    control: !_isMacOS,
   );
 
-  static const focusUrlInput = SingleActivator(
+  static SingleActivator focusUrlInput = SingleActivator(
     LogicalKeyboardKey.keyL,
-    meta: true,
-    control: true,
+    meta: _isMacOS,
+    control: !_isMacOS,
   );
 }
 

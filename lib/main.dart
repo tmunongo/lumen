@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/presentation/screens/home_screen.dart';
+import 'package:lumen/presentation/theme/reader_theme.dart';
 import 'package:lumen/presentation/utils/window_manager.dart';
 
 void main() async {
@@ -18,20 +19,8 @@ class LumenApp extends StatelessWidget {
     return MaterialApp(
       title: 'Lumen Space',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6B7FD7),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6B7FD7),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: ReaderTheme.lightReaderTheme(),
+      darkTheme: ReaderTheme.darkReaderTheme(),
       home: const HomeScreen(),
     );
   }

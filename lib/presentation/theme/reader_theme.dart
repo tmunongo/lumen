@@ -87,6 +87,35 @@ class ReaderTheme {
       textTheme: readerTextTheme(false),
       dividerColor: lightBorder,
       iconTheme: const IconThemeData(color: lightTextSecondary),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: lightBackground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: lightTextSecondary),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: lightAccent,
+        foregroundColor: lightSurface,
+      ),
+      cardTheme: CardThemeData(
+        color: lightSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: lightBorder),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        border: OutlineInputBorder(borderSide: BorderSide(color: lightBorder)),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: lightBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: lightAccent, width: 2),
+        ),
+        labelStyle: TextStyle(color: lightTextSecondary),
+        hintStyle: TextStyle(color: lightTextSecondary),
+      ),
     );
   }
 
@@ -102,6 +131,35 @@ class ReaderTheme {
       textTheme: readerTextTheme(true),
       dividerColor: darkBorder,
       iconTheme: const IconThemeData(color: darkTextSecondary),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkBackground,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: darkTextSecondary),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: darkAccent,
+        foregroundColor: darkBackground,
+      ),
+      cardTheme: CardThemeData(
+        color: darkSurface,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: darkBorder),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      inputDecorationTheme: const InputDecorationTheme(
+        border: OutlineInputBorder(borderSide: BorderSide(color: darkBorder)),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: darkAccent, width: 2),
+        ),
+        labelStyle: TextStyle(color: darkTextSecondary),
+        hintStyle: TextStyle(color: darkTextSecondary),
+      ),
     );
   }
 }

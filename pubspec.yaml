@@ -49,6 +49,7 @@ dependencies:
   path: ^1.9.1
   desktop_drop: ^0.7.0
   window_manager: ^0.5.1
+  share_plus: ^12.0.0
 
 dev_dependencies:
   flutter_test:

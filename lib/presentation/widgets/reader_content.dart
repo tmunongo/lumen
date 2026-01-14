@@ -20,6 +20,78 @@ class ReaderContent extends StatelessWidget {
 
     return Html(
       data: html,
+      extensions: [
+        TagExtension(
+          tagsToExtend: {'img'},
+          builder: (extensionContext) {
+            final src = extensionContext.attributes['src'];
+            if (src == null || src.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            // Handle relative URLs
+            String imageUrl = src;
+            if (!src.startsWith('http') && baseUrl != null) {
+              final base = Uri.tryParse(baseUrl!);
+              if (base != null) {
+                imageUrl = base.resolve(src).toString();
+              }
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Image.network(
+                imageUrl,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: codeBackground,
+                      border: Border.all(
+                        color: isDark
+                            ? ReaderTheme.darkBorder
+                            : ReaderTheme.lightBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          color: isDark
+                              ? ReaderTheme.darkTextSecondary
+                              : ReaderTheme.lightTextSecondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Failed to load image',
+                            style: TextStyle(
+                              color: isDark
+                                  ? ReaderTheme.darkTextSecondary
+                                  : ReaderTheme.lightTextSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ],
       style: {
         'html': Style(padding: HtmlPaddings.zero, margin: Margins.zero),
         'body': Style(

@@ -319,6 +319,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     await showDialog(
       context: context,
       builder: (context) => TagEditor(
+        projectId: widget.projectId,
         initialTags: artifact.tags,
         onSave: (tags) async {
           final service = ref.read(artifactServiceProvider);

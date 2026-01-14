@@ -59,25 +59,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         appBar: AppBar(
           title: const Text('Lumen Space'),
           elevation: 0,
-          actions: [
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.sort),
-              onSelected: (value) {
-                setState(() => _sortBy = value);
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'modified',
-                  child: Text('Sort by Modified'),
-                ),
-                const PopupMenuItem(
-                  value: 'created',
-                  child: Text('Sort by Created'),
-                ),
-                const PopupMenuItem(value: 'name', child: Text('Sort by Name')),
-              ],
-            ),
-          ],
         ),
         body: Row(
           children: [
@@ -94,7 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               child: Column(
                 children: [
-                  // New project input
+                  // New project input and sort menu
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -113,6 +94,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                           onSubmitted: (_) => _createProject(),
+                        ),
+                        const SizedBox(height: 12),
+                        // Sort/Filter menu
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.sort,
+                              size: 18,
+                              color: Theme.of(context).hintColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: PopupMenuButton<String>(
+                                initialValue: _sortBy,
+                                onSelected: (value) {
+                                  setState(() => _sortBy = value);
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'modified',
+                                    child: Text('Sort by Modified'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'created',
+                                    child: Text('Sort by Created'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'name',
+                                    child: Text('Sort by Name'),
+                                  ),
+                                ],
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: Theme.of(context).dividerColor,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _sortBy == 'modified'
+                                            ? 'Modified'
+                                            : _sortBy == 'created'
+                                                ? 'Created'
+                                                : 'Name',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                      ),
+                                      Icon(
+                                        Icons.arrow_drop_down,
+                                        size: 20,
+                                        color: Theme.of(context).hintColor,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

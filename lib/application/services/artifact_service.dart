@@ -179,7 +179,7 @@ class ArtifactService {
 
       var tag = await _tagRepository.findByName(projectId, normalized);
       if (tag == null) {
-        tag = Tag(projectId: projectId, name: normalized);
+        tag = Tag(projectId: projectId, name: normalized, usageCount: 1);
         await _tagRepository.create(tag);
       } else {
         tag.incrementUsage();
