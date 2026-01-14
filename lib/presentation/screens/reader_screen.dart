@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -256,8 +255,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                             ),
                                       ]),
                                       builder: (context, snapshot) {
-                                        if (!snapshot.hasData)
+                                        if (!snapshot.hasData) {
                                           return const SizedBox.shrink();
+                                        }
 
                                         final outgoing =
                                             snapshot.data![0]
@@ -280,8 +280,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                           ...incoming,
                                         ];
 
-                                        if (allLinks.isEmpty)
+                                        if (allLinks.isEmpty) {
                                           return const SizedBox.shrink();
+                                        }
 
                                         return Column(
                                           children: [
@@ -327,11 +328,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     final highlights = snapshot.data ?? [];
 
                                     if (widget.artifact.type ==
-                                        ArtifactType.quote)
+                                        ArtifactType.quote) {
                                       return _QuoteContent(
                                         artifact: widget.artifact,
                                       );
-                                    else if (widget.artifact.type ==
+                                    } else if (widget.artifact.type ==
                                         ArtifactType.note)
                                       return _NoteContent(
                                         artifact: widget.artifact,
