@@ -2,8 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/entities/artifact_link.dart';
 import 'package:lumen/presentation/theme/reader_theme.dart';
+import 'package:lumen/presentation/widgets/inline_graph_widget.dart';
 import 'package:lumen/presentation/widgets/reader_content.dart';
 import 'package:lumen/presentation/widgets/reader_toolbar.dart';
 
@@ -178,6 +181,55 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                     : ReaderTheme.lightBorder,
                               ),
 
+                              // Inline Graph
+                              Consumer(
+                                builder: (context, ref, child) {
+                                  final linkService = ref.watch(linkServiceProvider);
+                                  return FutureBuilder<List<List<dynamic>>>(
+                                    future: Future.wait([
+                                      linkService.getOutgoingLinksWithArtifacts(widget.artifact.id),
+                                      linkService.getIncomingLinksWithArtifacts(widget.artifact.id),
+                                    ]),
+                                    builder: (context, snapshot) {
+                                      if (!snapshot.hasData) return const SizedBox.shrink();
+
+                                      final outgoing = snapshot.data![0] as List<({ArtifactLink link, Artifact artifact})>;
+                                      final incoming = snapshot.data![1] as List<({ArtifactLink link, Artifact artifact})>;
+                                      final allLinks = [...outgoing, ...incoming];
+
+                                      if (allLinks.isEmpty) return const SizedBox.shrink();
+
+                                      return Column(
+                                        children: [
+                                          const SizedBox(height: 24),
+                                          InlineGraphWidget(
+                                            centerArtifact: widget.artifact,
+                                            connectedArtifacts: allLinks,
+                                            height: 200,
+                                            onArtifactTap: (artifact) {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => ReaderScreen(
+                                                    artifact: artifact,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 24),
+                                          Divider(
+                                            color: isDark
+                                                ? ReaderTheme.darkBorder
+                                                : ReaderTheme.lightBorder,
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                              
                               const SizedBox(height: 32),
 
                               // Content
