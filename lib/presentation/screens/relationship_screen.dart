@@ -239,6 +239,7 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
       _currentAnchor,
       widget.artifacts,
     );
+    final linkService = ref.watch(linkServiceProvider);
 
     return Column(
       children: [
@@ -326,45 +327,210 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
             ),
           ),
 
-        // Related artifacts list
+        // Related artifacts list (with explicit links)
         Expanded(
-          child: cluster.totalRelated == 0
-              ? Center(
+          child: FutureBuilder<List<List<dynamic>>>(
+            future: Future.wait([
+              linkService.getOutgoingLinkedArtifacts(_currentAnchor.id),
+              linkService.getBacklinks(_currentAnchor.id),
+            ]),
+            builder: (context, linkSnapshot) {
+              final outgoingLinks = linkSnapshot.data?[0] as List<Artifact>? ?? [];
+              final backlinks = linkSnapshot.data?[1] as List<Artifact>? ?? [];
+              
+              final hasExplicitLinks = outgoingLinks.isNotEmpty || backlinks.isNotEmpty;
+              final hasTagRelations = cluster.totalRelated > 0;
+              
+              if (!hasExplicitLinks && !hasTagRelations) {
+                return Center(
                   child: Text(
                     'No related artifacts found',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Theme.of(context).hintColor,
                     ),
                   ),
-                )
-              : ListView(
-                  children: [
-                    if (cluster.strongRelationships.isNotEmpty) ...[
-                      _RelationshipSection(
-                        title: 'Strong Connections',
-                        relationships: cluster.strongRelationships,
-                        onTap: widget.onArtifactTap,
-                      ),
-                    ],
-                    if (cluster.mediumRelationships.isNotEmpty) ...[
-                      _RelationshipSection(
-                        title: 'Medium Connections',
-                        relationships: cluster.mediumRelationships,
-                        onTap: widget.onArtifactTap,
-                      ),
-                    ],
-                    if (cluster.weakRelationships.isNotEmpty) ...[
-                      _RelationshipSection(
-                        title: 'Weak Connections',
-                        relationships: cluster.weakRelationships,
-                        onTap: widget.onArtifactTap,
-                      ),
-                    ],
+                );
+              }
+
+              return ListView(
+                children: [
+                  // Explicit outgoing links
+                  if (outgoingLinks.isNotEmpty) ...[
+                    _ExplicitLinkSection(
+                      title: 'Linked To',
+                      icon: Icons.arrow_forward,
+                      artifacts: outgoingLinks,
+                      onTap: widget.onArtifactTap,
+                      onRemove: (artifact) => _removeLink(_currentAnchor.id, artifact.id),
+                    ),
                   ],
-                ),
+                  
+                  // Backlinks (incoming)
+                  if (backlinks.isNotEmpty) ...[
+                    _ExplicitLinkSection(
+                      title: 'Backlinks',
+                      icon: Icons.arrow_back,
+                      artifacts: backlinks,
+                      onTap: widget.onArtifactTap,
+                      isBacklink: true,
+                    ),
+                  ],
+                  
+                  // Tag-based relationships
+                  if (cluster.strongRelationships.isNotEmpty) ...[
+                    _RelationshipSection(
+                      title: 'Strong Connections (by tags)',
+                      relationships: cluster.strongRelationships,
+                      onTap: widget.onArtifactTap,
+                    ),
+                  ],
+                  if (cluster.mediumRelationships.isNotEmpty) ...[
+                    _RelationshipSection(
+                      title: 'Medium Connections (by tags)',
+                      relationships: cluster.mediumRelationships,
+                      onTap: widget.onArtifactTap,
+                    ),
+                  ],
+                  if (cluster.weakRelationships.isNotEmpty) ...[
+                    _RelationshipSection(
+                      title: 'Weak Connections (by tags)',
+                      relationships: cluster.weakRelationships,
+                      onTap: widget.onArtifactTap,
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
+  }
+
+  Future<void> _removeLink(int sourceId, int targetId) async {
+    try {
+      final linkService = ref.read(linkServiceProvider);
+      await linkService.removeLink(sourceId, targetId);
+      setState(() {}); // Trigger rebuild
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Link removed')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove link: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+}
+
+/// Widget for displaying explicit artifact links (outgoing or backlinks)
+class _ExplicitLinkSection extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final List<Artifact> artifacts;
+  final Function(Artifact) onTap;
+  final Function(Artifact)? onRemove;
+  final bool isBacklink;
+
+  const _ExplicitLinkSection({
+    required this.title,
+    required this.icon,
+    required this.artifacts,
+    required this.onTap,
+    this.onRemove,
+    this.isBacklink = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${artifacts.length}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...artifacts.map((artifact) {
+          return ListTile(
+            leading: _getIcon(artifact),
+            title: Text(artifact.title),
+            subtitle: artifact.tags.isNotEmpty
+                ? Text(
+                    artifact.tags.join(', '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                : null,
+            trailing: onRemove != null && !isBacklink
+                ? IconButton(
+                    icon: const Icon(Icons.link_off, size: 20),
+                    tooltip: 'Remove link',
+                    onPressed: () => onRemove!(artifact),
+                  )
+                : isBacklink
+                    ? const Tooltip(
+                        message: 'Linked from this artifact',
+                        child: Icon(Icons.subdirectory_arrow_left, size: 20),
+                      )
+                    : null,
+            onTap: () => onTap(artifact),
+          );
+        }),
+        const Divider(height: 1),
+      ],
+    );
+  }
+
+  Widget _getIcon(Artifact artifact) {
+    IconData iconData;
+    switch (artifact.type) {
+      case ArtifactType.webPage:
+        iconData = Icons.article;
+      case ArtifactType.rawLink:
+        iconData = Icons.link;
+      case ArtifactType.note:
+        iconData = Icons.note;
+      case ArtifactType.quote:
+        iconData = Icons.format_quote;
+      case ArtifactType.image:
+        iconData = Icons.image;
+    }
+    return Icon(iconData);
   }
 }
 

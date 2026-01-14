@@ -2,14 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:lumen/application/services/artifact_service.dart';
 import 'package:lumen/application/services/ingestion_service.dart';
+import 'package:lumen/application/services/link_service.dart';
 import 'package:lumen/application/services/project_service.dart';
 import 'package:lumen/application/services/relationship_service.dart';
 import 'package:lumen/domain/entities/project.dart';
 import 'package:lumen/domain/repositories/artifact_repository.dart';
+import 'package:lumen/domain/repositories/link_repository.dart';
 import 'package:lumen/domain/repositories/project_repository.dart';
 import 'package:lumen/domain/repositories/tag_repository.dart';
 import 'package:lumen/infrastructure/database/isar_database.dart';
 import 'package:lumen/infrastructure/repositories/isar_artifact_repository.dart';
+import 'package:lumen/infrastructure/repositories/isar_link_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_project_repository.dart';
 import 'package:lumen/infrastructure/repositories/isar_tag_repository.dart';
 import 'package:lumen/infrastructure/services/html_sanitizer_impl.dart';
@@ -38,6 +41,12 @@ final tagRepositoryProvider = Provider<TagRepository>((ref) {
   final isar = ref.watch(isarProvider).value;
   if (isar == null) throw Exception('Isar not initialized');
   return IsarTagRepository(isar);
+});
+
+final linkRepositoryProvider = Provider<LinkRepository>((ref) {
+  final isar = ref.watch(isarProvider).value;
+  if (isar == null) throw Exception('Isar not initialized');
+  return IsarLinkRepository(isar);
 });
 
 final projectServiceProvider = Provider<ProjectService>((ref) {
@@ -83,6 +92,14 @@ final artifactServiceProvider = Provider<ArtifactService>((ref) {
   );
 });
 
+final linkServiceProvider = Provider<LinkService>((ref) {
+  return LinkService(
+    linkRepository: ref.watch(linkRepositoryProvider),
+    artifactRepository: ref.watch(artifactRepositoryProvider),
+  );
+});
+
 final relationshipServiceProvider = Provider<RelationshipService>((ref) {
   return RelationshipService();
 });
+

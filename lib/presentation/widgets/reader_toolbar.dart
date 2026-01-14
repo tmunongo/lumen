@@ -4,6 +4,7 @@ import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
 import 'package:lumen/presentation/screens/relationship_screen.dart';
 import 'package:lumen/presentation/theme/reader_theme.dart';
+import 'package:lumen/presentation/widgets/artifact_picker_dialog.dart';
 import 'package:lumen/presentation/widgets/quote_editor.dart';
 import 'package:lumen/presentation/widgets/tag_editor.dart';
 import 'package:share_plus/share_plus.dart';
@@ -43,6 +44,47 @@ class ReaderToolbar extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  void _createLink(BuildContext context, WidgetRef ref) async {
+    final targetArtifact = await ArtifactPickerDialog.show(
+      context,
+      projectId: artifact.projectId,
+      excludeArtifactId: artifact.id,
+    );
+
+    if (targetArtifact == null) return;
+
+    final linkService = ref.read(linkServiceProvider);
+    
+    try {
+      final link = await linkService.createLink(
+        artifact.id,
+        targetArtifact.id,
+        artifact.projectId,
+      );
+
+      if (context.mounted) {
+        if (link != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Linked to "${targetArtifact.title}"')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Link already exists')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create link: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   void _createQuote(BuildContext context, WidgetRef ref) async {
@@ -127,6 +169,11 @@ class ReaderToolbar extends ConsumerWidget {
                 icon: Icons.label_outline,
                 label: 'Tags',
                 onPressed: () => _editTags(context, ref),
+              ),
+              _ToolbarButton(
+                icon: Icons.link,
+                label: 'Link',
+                onPressed: () => _createLink(context, ref),
               ),
               _ToolbarButton(
                 icon: Icons.format_quote,
