@@ -2,6 +2,10 @@ display_name: Lumen Space
 
 icon: assets/icon.png
 
+generic_name: Lumen
+
 categories:
   - Utility
   - Productivity
+
+startup_notify: true
