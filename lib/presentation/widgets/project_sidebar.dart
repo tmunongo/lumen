@@ -1,17 +1,15 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
-import 'package:lumen/presentation/widgets/tag_editor.dart';
 import 'package:lumen/presentation/widgets/note_editor.dart';
 import 'package:lumen/presentation/widgets/quote_editor.dart';
+import 'package:lumen/presentation/widgets/tag_editor.dart';
 
 class ProjectSidebar extends ConsumerStatefulWidget {
   final int projectId;
   final Artifact? selectedArtifact;
-  final Function(Artifact) onArtifactSelected;
+  final Function(Artifact?) onArtifactSelected;
   final FocusNode urlFocusNode;
 
   const ProjectSidebar({
@@ -210,8 +208,14 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
     if (confirmed == true) {
       final service = ref.read(artifactServiceProvider);
       await service.deleteArtifact(artifact);
-      // If we deleted the selected artifact, parent should handle it (via riverpod stream update maybe?)
-      // Actually parent holds state, but doesn't know it's deleted unless we tell it or it watches.
+
+      if (widget.selectedArtifact?.id == artifact.id) {
+        widget.onArtifactSelected(null);
+      }
+
+      if (mounted) {
+        setState(() {}); // Refresh list
+      }
     }
   }
 
@@ -231,8 +235,6 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
     }
     return Icon(icon, size: 20); // Smaller icon for dense list
   }
-  
-
 
   @override
   Widget build(BuildContext context) {
@@ -278,9 +280,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: Text(
-                          '${tag.name} (${tag.usageCount})',
-                        ),
+                        label: Text('${tag.name} (${tag.usageCount})'),
                         selected: _filterTag == tag.name,
                         onSelected: (selected) {
                           setState(() {
@@ -318,7 +318,10 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                   decoration: const InputDecoration(
                     hintText: 'Paste URL...',
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   onSubmitted: (_) => _addLink(),
                 ),
@@ -335,7 +338,10 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                   icon: const Icon(Icons.add, size: 20),
                   onPressed: _addLink,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
                   splashRadius: 20,
                   style: IconButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
@@ -351,10 +357,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
           child: FutureBuilder<List<Artifact>>(
             future: _filterTag == null
                 ? artifactRepo.findByProject(widget.projectId)
-                : artifactRepo.findByTag(
-                    widget.projectId,
-                    _filterTag!,
-                  ),
+                : artifactRepo.findByTag(widget.projectId, _filterTag!),
             builder: (context, snapshot) {
               if (!snapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
@@ -371,10 +374,9 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                           ? 'No artifacts'
                           : 'No artifacts with tag',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall
-                          ?.copyWith(
-                            color: Theme.of(context).hintColor,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).hintColor,
+                      ),
                     ),
                   ),
                 );
@@ -386,7 +388,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                 itemBuilder: (context, index) {
                   final artifact = artifacts[index];
                   final isSelected = widget.selectedArtifact?.id == artifact.id;
-                  
+
                   return ListTile(
                     dense: true,
                     selected: isSelected,
@@ -396,31 +398,46 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
-                    subtitle: artifact.tags.isNotEmpty 
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            artifact.tags.join(', '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontSize: 11,
+                    subtitle: artifact.tags.isNotEmpty
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              artifact.tags.join(', '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(fontSize: 11),
                             ),
-                          ),
-                        )
-                      : null,
-                    trailing: !artifact.isFetched &&
-                        (artifact.type == ArtifactType.rawLink ||
-                            artifact.type == ArtifactType.webPage)
-                        ? const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : null,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!artifact.isFetched &&
+                            (artifact.type == ArtifactType.rawLink ||
+                                artifact.type == ArtifactType.webPage))
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, size: 16),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => _showArtifactOptions(artifact),
+                        ),
+                      ],
+                    ),
                     onTap: () => widget.onArtifactSelected(artifact),
                     onLongPress: () => _showArtifactOptions(artifact),
                   );

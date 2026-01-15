@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/presentation/screens/project_detail_screen.dart';
 import 'package:lumen/presentation/utils/keyboard_shortcuts.dart';
-
 import 'package:lumen/presentation/widgets/about_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -165,6 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           context,
                                         ).textTheme.bodyMedium,
                                       ),
+                                      const SizedBox(width: 4),
                                       Icon(
                                         Icons.arrow_drop_down,
                                         size: 20,
@@ -174,6 +174,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   ),
                                 ),
                               ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Filter Menu
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.filter_list),
+                              tooltip: 'Filter Projects',
+                              onSelected: (value) {
+                                if (value == 'archived') {
+                                  final current = ref.read(
+                                    showArchivedProjectsProvider,
+                                  );
+                                  ref
+                                          .read(
+                                            showArchivedProjectsProvider
+                                                .notifier,
+                                          )
+                                          .state =
+                                      !current;
+                                  ref.invalidate(projectsProvider);
+                                }
+                              },
+                              itemBuilder: (context) {
+                                final showArchived = ref.watch(
+                                  showArchivedProjectsProvider,
+                                );
+                                return [
+                                  CheckedPopupMenuItem(
+                                    value: 'archived',
+                                    checked: showArchived,
+                                    child: const Text('Show Archived'),
+                                  ),
+                                ];
+                              },
                             ),
                           ],
                         ),
@@ -266,6 +299,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               subtitle: Text(
                                 'Modified ${_formatDate(project.modifiedAt!)}',
                                 style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (value) async {
+                                  final service = ref.read(
+                                    projectServiceProvider,
+                                  );
+                                  if (value == 'archive') {
+                                    if (project.isArchived) {
+                                      await service.unarchiveProject(
+                                        project.id,
+                                      );
+                                    } else {
+                                      await service.archiveProject(project.id);
+                                    }
+                                    ref.invalidate(projectsProvider);
+                                  } else if (value == 'delete') {
+                                    if (context.mounted) {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('Delete Project'),
+                                          content: Text(
+                                            'Delete "${project.name}" and all its artifacts? This cannot be undone.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            FilledButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              style: FilledButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                              ),
+                                              child: const Text('Delete'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+
+                                      if (confirm == true) {
+                                        await service.deleteProject(project.id);
+                                        ref.invalidate(projectsProvider);
+                                      }
+                                    }
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'archive',
+                                    child: Text(
+                                      project.isArchived
+                                          ? 'Unarchive'
+                                          : 'Archive',
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text(
+                                      'Delete',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
                               ),
                               onTap: () {
                                 Navigator.of(context).push(
