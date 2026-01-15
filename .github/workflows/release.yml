@@ -85,8 +85,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            lumen-windows.exe
-            lumen-linux.AppImage
+            lumen-*.exe
+            lumen-*.AppImage
           draft: false
           prerelease: false
           generate_release_notes: true
