@@ -15,9 +15,9 @@ jobs:
         with:
           channel: "stable"
       - name: Install Distributor
-        run: dart pub global activate flutter_distributor
+        run: dart pub global activate fastforge
       - name: Build and Package
-        run: flutter_distributor release --name production --jobs windows-exe
+        run: fastforge package --platform windows --targets exe
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -40,23 +40,20 @@ jobs:
         with:
           channel: "stable"
 
-      - name: Install Flutter Distributor
+      - name: Install Fastforge
         run: |
-          dart pub global activate flutter_distributor
+          dart pub global activate fastforge
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
 
       - name: Build AppImage
         run: |
-          # We still use this env var to avoid FUSE issues during the tool's internal checks
           export APPIMAGE_EXTRACT_AND_RUN=1
-          flutter_distributor release --name dev --jobs linux-appimage
-        env:
-          PATH: $PATH:$HOME/.pub-cache/bin
+          fastforge package --platform linux --targets appimage
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          # flutter_distributor places the output in the dist/ folder by default
           path: dist/*/linux-appimage/*.AppImage
 
   create-release:
