@@ -4,6 +4,8 @@ import 'package:lumen/application/providers.dart';
 import 'package:lumen/presentation/screens/project_detail_screen.dart';
 import 'package:lumen/presentation/utils/keyboard_shortcuts.dart';
 
+import 'package:lumen/presentation/widgets/about_dialog.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -59,6 +61,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         appBar: AppBar(
           title: const Text('Lumen Space'),
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.info_outline),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => const LumenAboutDialog(),
+                );
+              },
+              tooltip: 'About Lumen Space',
+            ),
+            const SizedBox(width: 8),
+          ],
         ),
         body: Row(
           children: [
@@ -144,11 +159,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         _sortBy == 'modified'
                                             ? 'Modified'
                                             : _sortBy == 'created'
-                                                ? 'Created'
-                                                : 'Name',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium,
+                                            ? 'Created'
+                                            : 'Name',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium,
                                       ),
                                       Icon(
                                         Icons.arrow_drop_down,
