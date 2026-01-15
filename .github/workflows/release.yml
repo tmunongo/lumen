@@ -9,34 +9,20 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Windows app
-        run: flutter build windows --release
-
-      - name: Create installer
-        run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath lumen-windows.zip
-
-      - name: Rename executable
-        run: |
-          Copy-Item build\windows\x64\runner\Release\lumen.exe lumen-windows.exe
-
-      - name: Upload Windows artifact
+      - name: Install Distributor
+        run: dart pub global activate flutter_distributor
+      - name: Build and Package
+        run: flutter_distributor release --name production --jobs windows-exe
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: lumen-windows.exe
+          path: dist/*/windows-exe/*.exe
 
   build-linux:
     runs-on: ubuntu-latest
@@ -44,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
@@ -54,73 +40,24 @@ jobs:
         with:
           channel: "stable"
 
-      - name: Install Flutter dependencies
-        run: flutter pub get
-
-      - name: Build Linux app
-        run: flutter build linux --release
-
-      - name: Install AppImage builder
+      - name: Install Flutter Distributor
         run: |
-          wget https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-
-      - name: Create AppDir structure
-        run: |
-          mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/lib
-          mkdir -p AppDir/usr/share/applications
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-
-          # Copy binary
-          cp build/linux/x64/release/bundle/lumen AppDir/usr/bin/
-
-          # Copy libraries
-          cp -r build/linux/x64/release/bundle/lib/* AppDir/usr/lib/
-
-          # Copy data
-          cp -r build/linux/x64/release/bundle/data AppDir/usr/bin/
-
-      - name: Create desktop file
-        run: |
-          cat > AppDir/usr/share/applications/lumen.desktop << EOF
-          [Desktop Entry]
-          Name=Research Workspace
-          Exec=lumen
-          Icon=lumen
-          Type=Application
-          Categories=Office;Utility;
-          Comment=Local-first research tool
-          EOF
-
-      - name: Create AppRun script
-        run: |
-          cat > AppDir/AppRun << 'EOF'
-          #!/bin/bash
-          SELF=$(readlink -f "$0")
-          HERE=${SELF%/*}
-          export PATH="${HERE}/usr/bin:${PATH}"
-          export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
-          exec "${HERE}/usr/bin/lumen" "$@"
-          EOF
-          chmod +x AppDir/AppRun
-
-      - name: Create placeholder icon
-        run: |
-          cp assets/icon.png AppDir/usr/share/icons/hicolor/256x256/apps/lumen.png
+          dart pub global activate flutter_distributor
 
       - name: Build AppImage
         run: |
-          ./appimagetool-x86_64.AppImage AppDir lumen-linux.AppImage
+          # We still use this env var to avoid FUSE issues during the tool's internal checks
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          flutter_distributor release --name dev --jobs linux-appimage
         env:
-          ARCH: x86_64
-          APPIMAGE_EXTRACT_AND_RUN: 1
+          PATH: $PATH:$HOME/.pub-cache/bin
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: lumen-linux.AppImage
+          # flutter_distributor places the output in the dist/ folder by default
+          path: dist/*/linux-appimage/*.AppImage
 
   create-release:
     needs: [build-windows, build-linux]
