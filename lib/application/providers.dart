@@ -60,13 +60,25 @@ final highlightRepositoryProvider = Provider<HighlightRepository>((ref) {
 
 // Service providers
 final projectServiceProvider = Provider<ProjectService>((ref) {
-  final repository = ref.watch(projectRepositoryProvider);
-  return ProjectService(repository);
+  final projectRepository = ref.watch(projectRepositoryProvider);
+  final artifactRepository = ref.watch(artifactRepositoryProvider);
+  final tagRepository = ref.watch(tagRepositoryProvider);
+  final artifactService = ref.watch(artifactServiceProvider);
+
+  return ProjectService(
+    projectRepository: projectRepository,
+    artifactRepository: artifactRepository,
+    tagRepository: tagRepository,
+    artifactService: artifactService,
+  );
 });
+
+final showArchivedProjectsProvider = StateProvider<bool>((ref) => false);
 
 final projectsProvider = StreamProvider<List<Project>>((ref) async* {
   final service = ref.watch(projectServiceProvider);
-  yield await service.getAllProjects();
+  final showArchived = ref.watch(showArchivedProjectsProvider);
+  yield await service.getAllProjects(includeArchived: showArchived);
 });
 
 final webFetcherProvider = Provider<WebFetcher>((ref) {
