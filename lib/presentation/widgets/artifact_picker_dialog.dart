@@ -65,6 +65,8 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
         return Icons.format_quote;
       case ArtifactType.image:
         return Icons.image;
+      case ArtifactType.markdown:
+        return Icons.edit_document;
     }
   }
 
@@ -220,8 +222,8 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
                             ? 'No other artifacts in this project'
                             : 'No artifacts match your search',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Theme.of(context).hintColor,
-                            ),
+                          color: Theme.of(context).hintColor,
+                        ),
                       ),
                     );
                   }
@@ -264,4 +266,3 @@ class _ArtifactPickerDialogState extends ConsumerState<ArtifactPickerDialog> {
     );
   }
 }
-

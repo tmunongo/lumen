@@ -2,7 +2,7 @@ import 'package:isar/isar.dart';
 
 part 'artifact.g.dart';
 
-enum ArtifactType { webPage, rawLink, note, quote, image }
+enum ArtifactType { webPage, rawLink, note, quote, image, markdown }
 
 @collection
 class Artifact {

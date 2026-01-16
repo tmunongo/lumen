@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/entities/markdown_document.dart';
 import 'package:lumen/presentation/widgets/note_editor.dart';
 import 'package:lumen/presentation/widgets/quote_editor.dart';
 import 'package:lumen/presentation/widgets/tag_editor.dart';
@@ -10,12 +11,16 @@ class ProjectSidebar extends ConsumerStatefulWidget {
   final int projectId;
   final Artifact? selectedArtifact;
   final Function(Artifact?) onArtifactSelected;
+  final MarkdownDocument? selectedMarkdownDocument;
+  final Function(MarkdownDocument?) onMarkdownSelected;
   final FocusNode urlFocusNode;
 
   const ProjectSidebar({
     required this.projectId,
     required this.selectedArtifact,
     required this.onArtifactSelected,
+    required this.selectedMarkdownDocument,
+    required this.onMarkdownSelected,
     required this.urlFocusNode,
     super.key,
   });
@@ -232,8 +237,155 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
         icon = Icons.format_quote;
       case ArtifactType.image:
         icon = Icons.image;
+      case ArtifactType.markdown:
+        icon = Icons.edit_document;
     }
     return Icon(icon, size: 20); // Smaller icon for dense list
+  }
+
+  void _openMarkdownDocument(MarkdownDocument document) {
+    widget.onMarkdownSelected(document);
+  }
+
+  Future<void> _deleteMarkdownDocument(MarkdownDocument document) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Document'),
+        content: Text('Delete "${document.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final service = ref.read(markdownServiceProvider);
+      await service.deleteDocument(document.id);
+      ref.invalidate(projectMarkdownDocumentsProvider(widget.projectId));
+    }
+  }
+
+  Widget _buildMarkdownSection() {
+    final markdownDocs = ref.watch(
+      projectMarkdownDocumentsProvider(widget.projectId),
+    );
+
+    return markdownDocs.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (documents) {
+        if (documents.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_document, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Documents',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${documents.length}',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ...documents.map(
+              (doc) => ListTile(
+                selected: widget.selectedMarkdownDocument?.id == doc.id,
+                dense: true,
+                leading: const Icon(Icons.description, size: 18),
+                title: Text(
+                  doc.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: widget.selectedMarkdownDocument?.id == doc.id
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+                subtitle: Text(
+                  doc.filename,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
+                    color: Theme.of(context).hintColor,
+                  ),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.more_vert, size: 16),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _showMarkdownOptions(doc),
+                ),
+                onTap: () => _openMarkdownDocument(doc),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showMarkdownOptions(MarkdownDocument document) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(context);
+                _openMarkdownDocument(document);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context);
+                await _deleteMarkdownDocument(document);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -351,6 +503,11 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
             ],
           ),
         ),
+
+        // Markdown documents section
+        _buildMarkdownSection(),
+
+        const Divider(height: 1),
 
         // Artifacts list
         Expanded(

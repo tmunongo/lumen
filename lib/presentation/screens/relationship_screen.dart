@@ -153,6 +153,8 @@ class _ArtifactSelector extends StatelessWidget {
         icon = Icons.format_quote;
       case ArtifactType.image:
         icon = Icons.image;
+      case ArtifactType.markdown:
+        icon = Icons.edit_document;
     }
     return Icon(icon);
   }
@@ -198,10 +200,10 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
     try {
       final artifactService = ref.read(artifactServiceProvider);
       final artifactRepo = ref.read(artifactRepositoryProvider);
-      
+
       // Add the tag to the artifact
       await artifactService.addTagsToArtifact(_currentAnchor, [tag]);
-      
+
       // Refresh the artifact to get updated tags
       final updatedArtifact = await artifactRepo.findById(_currentAnchor.id);
       if (updatedArtifact != null) {
@@ -336,12 +338,19 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
               linkService.getIncomingLinksWithArtifacts(_currentAnchor.id),
             ]),
             builder: (context, linkSnapshot) {
-              final outgoingLinks = linkSnapshot.data?[0] as List<({ArtifactLink link, Artifact artifact})>? ?? [];
-              final backlinks = linkSnapshot.data?[1] as List<({ArtifactLink link, Artifact artifact})>? ?? [];
-              
-              final hasExplicitLinks = outgoingLinks.isNotEmpty || backlinks.isNotEmpty;
+              final outgoingLinks =
+                  linkSnapshot.data?[0]
+                      as List<({ArtifactLink link, Artifact artifact})>? ??
+                  [];
+              final backlinks =
+                  linkSnapshot.data?[1]
+                      as List<({ArtifactLink link, Artifact artifact})>? ??
+                  [];
+
+              final hasExplicitLinks =
+                  outgoingLinks.isNotEmpty || backlinks.isNotEmpty;
               final hasTagRelations = cluster.totalRelated > 0;
-              
+
               if (!hasExplicitLinks && !hasTagRelations) {
                 return Center(
                   child: Text(
@@ -362,10 +371,13 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
                       icon: Icons.arrow_forward,
                       links: outgoingLinks,
                       onTap: widget.onArtifactTap,
-                      onRemove: (link) => _removeLink(link.sourceArtifactId, link.targetArtifactId),
+                      onRemove: (link) => _removeLink(
+                        link.sourceArtifactId,
+                        link.targetArtifactId,
+                      ),
                     ),
                   ],
-                  
+
                   // Backlinks (incoming)
                   if (backlinks.isNotEmpty) ...[
                     _ExplicitLinkSection(
@@ -376,7 +388,7 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
                       isBacklink: true,
                     ),
                   ],
-                  
+
                   // Tag-based relationships
                   if (cluster.strongRelationships.isNotEmpty) ...[
                     _RelationshipSection(
@@ -414,9 +426,9 @@ class _RelationshipViewState extends ConsumerState<_RelationshipView> {
       await linkService.removeLink(sourceId, targetId);
       setState(() {}); // Trigger rebuild
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Link removed')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Link removed')));
       }
     } catch (e) {
       if (mounted) {
@@ -457,11 +469,17 @@ class _ExplicitLinkSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.primaryContainer.withValues(alpha: 0.3),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+              Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -529,11 +547,11 @@ class _ExplicitLinkSection extends StatelessWidget {
                     onPressed: () => onRemove!(link),
                   )
                 : isBacklink
-                    ? const Tooltip(
-                        message: 'Linked from this artifact',
-                        child: Icon(Icons.subdirectory_arrow_left, size: 20),
-                      )
-                    : null,
+                ? const Tooltip(
+                    message: 'Linked from this artifact',
+                    child: Icon(Icons.subdirectory_arrow_left, size: 20),
+                  )
+                : null,
             onTap: () => onTap(artifact),
           );
         }),
@@ -555,6 +573,8 @@ class _ExplicitLinkSection extends StatelessWidget {
         iconData = Icons.format_quote;
       case ArtifactType.image:
         iconData = Icons.image;
+      case ArtifactType.markdown:
+        iconData = Icons.edit_document;
     }
     return Icon(iconData);
   }
@@ -639,6 +659,8 @@ class _RelationshipSection extends StatelessWidget {
         icon = Icons.format_quote;
       case ArtifactType.image:
         icon = Icons.image;
+      case ArtifactType.markdown:
+        icon = Icons.edit_document;
     }
     return Icon(icon);
   }
@@ -803,6 +825,8 @@ class _NetworkView extends StatelessWidget {
         icon = Icons.format_quote;
       case ArtifactType.image:
         icon = Icons.image;
+      case ArtifactType.markdown:
+        icon = Icons.edit_document;
     }
     return Icon(icon);
   }
