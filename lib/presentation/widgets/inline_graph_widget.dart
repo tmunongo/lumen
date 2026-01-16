@@ -69,13 +69,13 @@ class _InlineGraphWidgetState extends State<InlineGraphWidget>
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, widget.height);
-          
+
           // Calculate layout if not already done or size changed
           // In a real app we might want to memoize this better
           final neighborIds = widget.connectedArtifacts
               .map((e) => e.artifact.id)
               .toList();
-          
+
           _layout = _layoutService.calculateRadialLayout(
             centerId: widget.centerArtifact.id,
             neighborIds: neighborIds,
@@ -103,11 +103,12 @@ class _InlineGraphWidgetState extends State<InlineGraphWidget>
 
   void _handleTap(TapUpDetails details, Map<int, GraphNode> layout) {
     final tapPosition = details.localPosition;
-    
+
     // Check if we hit any node
     for (final node in layout.values) {
       final distance = (node.position - tapPosition).distance;
-      if (distance <= node.radius + 10) { // Add some padding for easier taps
+      if (distance <= node.radius + 10) {
+        // Add some padding for easier taps
         if (node.id == widget.centerArtifact.id) {
           // Tapped center, maybe do nothing or show details?
         } else {
@@ -152,12 +153,14 @@ class GraphPainter extends CustomPainter {
     for (final connected in connectedArtifacts) {
       final node = layout[connected.artifact.id];
       if (node != null) {
-        edgePaint.color = _getLinkColor(connected.link.type).withValues(alpha: 0.5);
-        
+        edgePaint.color = _getLinkColor(
+          connected.link.type,
+        ).withValues(alpha: 0.5);
+
         // Draw line from center to node, animated length could be cool but scaling the whole graph is simpler
         final p1 = centerNode.position;
         final p2 = Offset.lerp(p1, node.position, scale)!;
-        
+
         canvas.drawLine(p1, p2, edgePaint);
       }
     }
@@ -166,39 +169,51 @@ class GraphPainter extends CustomPainter {
     for (final entry in layout.entries) {
       final node = entry.value;
       if (node.isCenter) {
-        _drawNode(canvas, node, centerArtifact, null, scale); // Center always 1.0 or separate animation?
+        _drawNode(
+          canvas,
+          node,
+          centerArtifact,
+          null,
+          scale,
+        ); // Center always 1.0 or separate animation?
       } else {
         // Find artifacts
-        final connected = connectedArtifacts.firstWhere((e) => e.artifact.id == node.id);
+        final connected = connectedArtifacts.firstWhere(
+          (e) => e.artifact.id == node.id,
+        );
         _drawNode(canvas, node, connected.artifact, connected.link.type, scale);
       }
     }
   }
 
   void _drawNode(
-    Canvas canvas, 
-    GraphNode node, 
-    Artifact artifact, 
-    LinkType? type, 
-    double scale
+    Canvas canvas,
+    GraphNode node,
+    Artifact artifact,
+    LinkType? type,
+    double scale,
   ) {
     // Determine colors
-    final color = type != null 
-        ? _getLinkColor(type) 
+    final color = type != null
+        ? _getLinkColor(type)
         : theme.colorScheme.primary;
-    
+
     final bgPaint = Paint()
       ..color = theme.colorScheme.surface
       ..style = PaintingStyle.fill;
-    
+
     final borderPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = node.isCenter ? 3.0 : 2.0;
 
-    final position = node.isCenter 
-        ? node.position 
-        : Offset.lerp(layout[centerArtifact.id]!.position, node.position, scale)!;
+    final position = node.isCenter
+        ? node.position
+        : Offset.lerp(
+            layout[centerArtifact.id]!.position,
+            node.position,
+            scale,
+          )!;
 
     // Draw circle background & border
     canvas.drawCircle(position, node.radius, bgPaint);
@@ -220,7 +235,7 @@ class GraphPainter extends CustomPainter {
     );
     textPainter.layout();
     textPainter.paint(
-      canvas, 
+      canvas,
       position - Offset(textPainter.width / 2, textPainter.height / 2),
     );
 
@@ -275,12 +290,14 @@ class GraphPainter extends CustomPainter {
         return Icons.format_quote;
       case ArtifactType.image:
         return Icons.image;
+      case ArtifactType.markdown:
+        return Icons.edit_document;
     }
   }
 
   @override
   bool shouldRepaint(covariant GraphPainter oldDelegate) {
     return oldDelegate.animationValue != animationValue ||
-           oldDelegate.layout != layout;
+        oldDelegate.layout != layout;
   }
 }

@@ -182,6 +182,8 @@ class ArtifactSearchDelegate extends SearchDelegate<Artifact?> {
         icon = Icons.format_quote;
       case ArtifactType.image:
         icon = Icons.image;
+      case ArtifactType.markdown:
+        icon = Icons.edit_document;
     }
     return Icon(icon);
   }

@@ -5,15 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/entities/markdown_document.dart';
 import 'package:lumen/domain/entities/project.dart';
+import 'package:lumen/presentation/screens/markdown_editor_screen.dart';
 import 'package:lumen/presentation/screens/reader_screen.dart';
 import 'package:lumen/presentation/screens/relationship_screen.dart';
 import 'package:lumen/presentation/utils/keyboard_shortcuts.dart';
 import 'package:lumen/presentation/widgets/drag_drop_area.dart';
 import 'package:lumen/presentation/widgets/note_editor.dart';
+import 'package:lumen/presentation/widgets/project_sidebar.dart';
 import 'package:lumen/presentation/widgets/quote_editor.dart';
 import 'package:lumen/presentation/widgets/search_delegate.dart';
-import 'package:lumen/presentation/widgets/project_sidebar.dart';
 
 class ProjectDetailScreen extends ConsumerStatefulWidget {
   final int projectId;
@@ -26,14 +28,10 @@ class ProjectDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
-
-
-
   final _urlFocusNode = FocusNode();
 
   @override
   void dispose() {
-
     _urlFocusNode.dispose();
     super.dispose();
   }
@@ -212,6 +210,95 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     titleController.dispose();
   }
 
+  Future<void> _createMarkdown() async {
+    final titleController = TextEditingController(text: 'Untitled Document');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New Markdown Document'),
+        content: TextField(
+          controller: titleController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Document Title',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (_) => Navigator.pop(context, true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && titleController.text.trim().isNotEmpty) {
+      try {
+        final markdownService = ref.read(markdownServiceProvider);
+        final document = await markdownService.createDocument(
+          projectId: widget.projectId,
+          title: titleController.text.trim(),
+        );
+
+        setState(() {
+          _selectedMarkdownDocument = document;
+          _selectedArtifact = null;
+        });
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error creating document: $e')),
+          );
+        }
+      }
+    }
+
+    titleController.dispose();
+  }
+
+  Future<void> _importMarkdown() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['md', 'txt'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final filePath = result.files.single.path!;
+        final markdownService = ref.read(markdownServiceProvider);
+
+        final document = await markdownService.importFromFile(
+          projectId: widget.projectId,
+          filePath: filePath,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Document imported successfully')),
+          );
+
+          setState(() {
+            _selectedMarkdownDocument = document;
+            _selectedArtifact = null;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error importing document: $e')));
+      }
+    }
+  }
+
   void _showAddMenu() {
     showModalBottomSheet(
       context: context,
@@ -219,6 +306,24 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ListTile(
+              leading: const Icon(Icons.edit_document),
+              title: const Text('New Markdown'),
+              subtitle: const Text('Create a new markdown document'),
+              onTap: () {
+                Navigator.pop(context);
+                _createMarkdown();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_upload),
+              title: const Text('Import Markdown'),
+              onTap: () {
+                Navigator.pop(context);
+                _importMarkdown();
+              },
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.link),
               title: const Text('Add Link'),
@@ -262,9 +367,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     );
   }
 
-
-
   Artifact? _selectedArtifact;
+  MarkdownDocument? _selectedMarkdownDocument;
 
   @override
   Widget build(BuildContext context) {
@@ -333,22 +437,44 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                       projectId: widget.projectId,
                       selectedArtifact: _selectedArtifact,
                       onArtifactSelected: (artifact) {
-                         setState(() => _selectedArtifact = artifact);
+                        setState(() {
+                          _selectedArtifact = artifact;
+                          _selectedMarkdownDocument = null;
+                        });
+                      },
+                      selectedMarkdownDocument: _selectedMarkdownDocument,
+                      onMarkdownSelected: (document) {
+                        setState(() {
+                          _selectedMarkdownDocument = document;
+                          _selectedArtifact = null;
+                        });
                       },
                       urlFocusNode: _urlFocusNode,
                     ),
                   ),
 
-                  VerticalDivider(width: 1, color: Theme.of(context).dividerColor),
+                  VerticalDivider(
+                    width: 1,
+                    color: Theme.of(context).dividerColor,
+                  ),
 
                   // Main Content Area
                   Expanded(
                     child: _selectedArtifact != null
                         ? ReaderScreen(
-                            key: ValueKey(_selectedArtifact!.id), // Ensure rebuild on change
+                            key: ValueKey(_selectedArtifact!.id),
                             artifact: _selectedArtifact!,
-                            showBackButton: true, // Show back to close
-                            onBack: () => setState(() => _selectedArtifact = null),
+                            showBackButton: true,
+                            onBack: () =>
+                                setState(() => _selectedArtifact = null),
+                          )
+                        : _selectedMarkdownDocument != null
+                        ? MarkdownEditorScreen(
+                            key: ValueKey(_selectedMarkdownDocument!.id),
+                            document: _selectedMarkdownDocument!,
+                            onBack: () => setState(
+                              () => _selectedMarkdownDocument = null,
+                            ),
                           )
                         : _buildEmptyState(context),
                   ),
@@ -375,15 +501,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           Text(
             'Select an artifact to view content',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).hintColor,
-                ),
+              color: Theme.of(context).hintColor,
+            ),
           ),
         ],
       ),
     );
   }
-
-
 }
-
-
