@@ -10,7 +10,7 @@ class HighlightService {
     required int artifactId,
     required String selectedText,
     String? note,
-    String style = 'yellow',
+    String style = 'rgba(255, 235, 59, 0.5)',
   }) async {
     final highlight = ArtifactHighlight(
       artifactId: artifactId,
@@ -25,7 +25,9 @@ class HighlightService {
     await _repository.delete(highlightId);
   }
 
-  Future<List<ArtifactHighlight>> getHighlightsForArtifact(int artifactId) async {
+  Future<List<ArtifactHighlight>> getHighlightsForArtifact(
+    int artifactId,
+  ) async {
     return await _repository.findByArtifact(artifactId);
   }
 
@@ -39,32 +41,88 @@ class HighlightService {
     // Actually, findByArtifact returns list. We can filter.
     // Better to add findById to repo? Yes.
   }
-  
+
   /// Injects <mark> tags into HTML content based on highlights
-  /// This is a "fuzzy" injection that replaces occurrences of the text
-  String injectHighlights(String htmlContent, List<ArtifactHighlight> highlights) {
+  /// Uses HTML-aware text matching to avoid breaking HTML structure
+  String injectHighlights(
+    String htmlContent,
+    List<ArtifactHighlight> highlights,
+  ) {
     if (highlights.isEmpty) return htmlContent;
+
+    // Sort highlights by length (longest first) to handle overlapping text better
+    final sortedHighlights = List<ArtifactHighlight>.from(highlights)
+      ..sort((a, b) => b.selectedText.length.compareTo(a.selectedText.length));
 
     String processedHtml = htmlContent;
 
-    // Sort highlights by length descending to match longest phrases first (reduces partial collision)
-    // Or just iterate.
-    // A generic approach:
-    for (final highlight in highlights) {
-      final text = highlight.selectedText;
-      if (text.trim().isEmpty) continue;
-      
-      // Simple case-insensitive replacement
-      // We wrap in <mark data-id="${highlight.id}" class="highlight-${highlight.style}">...</mark>
-      // We use a regex that tries not to break HTML tags (basic approach)
-      final replacement = '<mark data-id="${highlight.id}" style="background-color: ${highlight.style}; cursor: pointer;">$text</mark>';
-      
-      // THIS IS NAIVE: it replaces ALL occurrences.
-      // Ideal solution requires storing position/offset, but flutter_html doesn't give us easy offset.
-      // We accept this limitation for the "fuzzy" strategy.
-      processedHtml = processedHtml.replaceAll(text, replacement);
+    // Keep track of what we've already highlighted to avoid duplicates
+    final Set<String> processedTexts = {};
+
+    for (final highlight in sortedHighlights) {
+      final text = highlight.selectedText.trim();
+      if (text.isEmpty || processedTexts.contains(text)) continue;
+
+      // Use a more sophisticated approach: only replace text outside of HTML tags
+      // This regex matches the text but not if it's inside a tag (< ... >)
+      // We use word boundaries when possible, but fallback to exact match
+
+      // Create a regex that matches the text but NOT inside HTML tags
+      // This is a simplified approach - we look for text that isn't between < and >
+      // We use negative lookahead to avoid matching text that's part of an HTML tag or attribute
+
+      // Split by HTML tags to process only text content
+      final parts = <String>[];
+      var lastIndex = 0;
+      final tagPattern = RegExp(r'<[^>]+>');
+
+      for (final match in tagPattern.allMatches(processedHtml)) {
+        // Add text before tag (if any)
+        if (match.start > lastIndex) {
+          final textPart = processedHtml.substring(lastIndex, match.start);
+          // Only replace in text parts, not in tags
+          final replacedText = _replaceFirstOccurrence(
+            textPart,
+            text,
+            '<a href="highlight:${highlight.id}" style="background-color: ${highlight.style}; color: inherit; text-decoration: none;">$text</a>',
+          );
+          parts.add(replacedText);
+        }
+
+        // Add the tag itself unchanged
+        parts.add(match.group(0)!);
+        lastIndex = match.end;
+      }
+
+      // Add remaining text after last tag
+      if (lastIndex < processedHtml.length) {
+        final textPart = processedHtml.substring(lastIndex);
+        final replacedText = _replaceFirstOccurrence(
+          textPart,
+          text,
+          '<a href="highlight:${highlight.id}" style="background-color: ${highlight.style}; color: inherit; text-decoration: none;">$text</a>',
+        );
+        parts.add(replacedText);
+      }
+
+      processedHtml = parts.join();
+      processedTexts.add(text);
     }
 
     return processedHtml;
+  }
+
+  /// Helper to replace only the first occurrence of text
+  String _replaceFirstOccurrence(
+    String source,
+    String pattern,
+    String replacement,
+  ) {
+    final index = source.indexOf(pattern);
+    if (index == -1) return source;
+
+    return source.substring(0, index) +
+        replacement +
+        source.substring(index + pattern.length);
   }
 }

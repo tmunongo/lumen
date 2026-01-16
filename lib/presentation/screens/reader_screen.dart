@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/application/services/highlight_service.dart';
 import 'package:lumen/domain/entities/artifact.dart';
+import 'package:lumen/domain/entities/artifact_highlight.dart';
 import 'package:lumen/presentation/theme/reader_theme.dart';
 import 'package:lumen/presentation/widgets/connections_panel.dart';
 import 'package:lumen/presentation/widgets/reader_content.dart';
@@ -33,11 +34,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _showToolbar = true;
   double _scrollProgress = 0.0;
   SelectedContent? _currentSelection;
+  List<ArtifactHighlight>? _cachedHighlights;
+  bool _isLoadingHighlights = true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadHighlights();
+  }
+
+  Future<void> _loadHighlights() async {
+    final highlightService = ref.read(highlightServiceProvider);
+    final highlights = await highlightService.getHighlightsForArtifact(
+      widget.artifact.id,
+    );
+    if (mounted) {
+      setState(() {
+        _cachedHighlights = highlights;
+        _isLoadingHighlights = false;
+      });
+    }
   }
 
   @override
@@ -51,10 +68,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     final maxScroll = _scrollController.position.maxScrollExtent;
     final currentScroll = _scrollController.position.pixels;
+    final newProgress = maxScroll > 0 ? currentScroll / maxScroll : 0.0;
 
-    setState(() {
-      _scrollProgress = maxScroll > 0 ? currentScroll / maxScroll : 0.0;
-    });
+    // Only update if progress changed by more than 0.5% to reduce rebuilds
+    if ((newProgress - _scrollProgress).abs() > 0.005) {
+      setState(() {
+        _scrollProgress = newProgress;
+      });
+    }
   }
 
   void _toggleToolbar() {
@@ -95,10 +116,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                               artifactId: widget.artifact.id,
                               selectedText: text,
                             )
-                            .then((_) {
+                            .then((_) async {
                               editableTextState.hideToolbar();
-                              setState(() {}); // Refresh to show highlight
-                              if (mounted) {
+                              await _loadHighlights(); // Reload highlights
+                              if (mounted && context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Highlight added'),
@@ -250,65 +271,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                                 const SizedBox(height: 32),
 
                                 // Content with Highlights
-                                FutureBuilder(
-                                  future: highlightService
-                                      .getHighlightsForArtifact(
-                                        widget.artifact.id,
-                                      ),
-                                  builder: (context, snapshot) {
-                                    final highlights = snapshot.data ?? [];
-
-                                    if (widget.artifact.type ==
-                                        ArtifactType.quote) {
-                                      return _QuoteContent(
-                                        artifact: widget.artifact,
-                                      );
-                                    } else if (widget.artifact.type ==
-                                        ArtifactType.note) {
-                                      return _NoteContent(
-                                        artifact: widget.artifact,
-                                      );
-                                    } else if (widget.artifact.type ==
-                                        ArtifactType.image) {
-                                      return _ImageContent(
-                                        artifact: widget.artifact,
-                                      );
-                                    } else if (widget.artifact.content !=
-                                        null) {
-                                      // Inject highlights
-                                      final contentWithHighlights =
-                                          highlightService.injectHighlights(
-                                            widget.artifact.content!,
-                                            highlights,
-                                          );
-
-                                      return ReaderContent(
-                                        html: contentWithHighlights,
-                                        baseUrl: widget.artifact.sourceUrl,
-                                        onHighlightTap: (id) =>
-                                            _showHighlightOptions(
-                                              context,
-                                              id,
-                                              highlightService,
-                                            ),
-                                      );
-                                    } else {
-                                      return Text(
-                                        'No content available',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyLarge
-                                            ?.copyWith(
-                                              color: isDark
-                                                  ? ReaderTheme
-                                                        .darkTextSecondary
-                                                  : ReaderTheme
-                                                        .lightTextSecondary,
-                                            ),
-                                      );
-                                    }
-                                  },
-                                ),
+                                _isLoadingHighlights
+                                    ? const Center(
+                                        child: CircularProgressIndicator(),
+                                      )
+                                    : _buildContent(isDark, highlightService),
 
                                 const SizedBox(height: 64),
                               ],
@@ -337,6 +304,38 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  Widget _buildContent(bool isDark, HighlightService highlightService) {
+    if (widget.artifact.type == ArtifactType.quote) {
+      return _QuoteContent(artifact: widget.artifact);
+    } else if (widget.artifact.type == ArtifactType.note) {
+      return _NoteContent(artifact: widget.artifact);
+    } else if (widget.artifact.type == ArtifactType.image) {
+      return _ImageContent(artifact: widget.artifact);
+    } else if (widget.artifact.content != null) {
+      // Inject highlights
+      final contentWithHighlights = highlightService.injectHighlights(
+        widget.artifact.content!,
+        _cachedHighlights ?? [],
+      );
+
+      return ReaderContent(
+        html: contentWithHighlights,
+        baseUrl: widget.artifact.sourceUrl,
+        onHighlightTap: (id) =>
+            _showHighlightOptions(context, id, highlightService),
+      );
+    } else {
+      return Text(
+        'No content available',
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: isDark
+              ? ReaderTheme.darkTextSecondary
+              : ReaderTheme.lightTextSecondary,
+        ),
+      );
+    }
+  }
+
   Future<void> _showHighlightOptions(
     BuildContext context,
     int highlightId,
@@ -353,16 +352,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('Remove Highlight'),
                 textColor: Colors.red,
-                onTap: () {
+                onTap: () async {
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
                   Navigator.pop(context);
-                  service.removeHighlight(highlightId).then((_) {
-                    if (mounted) {
-                      setState(() {}); // Refresh content
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Highlight removed')),
-                      );
-                    }
-                  });
+                  await service.removeHighlight(highlightId);
+                  if (mounted) {
+                    await _loadHighlights(); // Reload highlights
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(content: Text('Highlight removed')),
+                    );
+                  }
                 },
               ),
               // We can add "Add Note" here later
