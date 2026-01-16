@@ -63,7 +63,7 @@ class LumenAboutDialog extends StatelessWidget {
                 child: Column(
                   children: [
                     Text(
-                      'The easiest way to support me is to spread the word about Lumen Space. You can also directly support the development of this app by buying me a coffee.',
+                      'The easiest way to support the project is to spread the word about Lumen Space. You can also directly support the development of this app by buying me a coffee.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
