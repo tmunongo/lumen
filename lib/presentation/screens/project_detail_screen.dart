@@ -263,6 +263,42 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     titleController.dispose();
   }
 
+  Future<void> _importMarkdown() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['md', 'txt'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final filePath = result.files.single.path!;
+        final markdownService = ref.read(markdownServiceProvider);
+
+        final document = await markdownService.importFromFile(
+          projectId: widget.projectId,
+          filePath: filePath,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Document imported successfully')),
+          );
+
+          setState(() {
+            _selectedMarkdownDocument = document;
+            _selectedArtifact = null;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error importing document: $e')));
+      }
+    }
+  }
+
   void _showAddMenu() {
     showModalBottomSheet(
       context: context,
@@ -277,6 +313,14 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               onTap: () {
                 Navigator.pop(context);
                 _createMarkdown();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_upload),
+              title: const Text('Import Markdown'),
+              onTap: () {
+                Navigator.pop(context);
+                _importMarkdown();
               },
             ),
             const Divider(height: 1),

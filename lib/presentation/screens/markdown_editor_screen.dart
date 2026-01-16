@@ -162,37 +162,24 @@ class _MarkdownEditorScreenState extends ConsumerState<MarkdownEditorScreen> {
             }
           }
         },
-        child: CallbackShortcuts(
-          bindings: {
-            const SingleActivator(LogicalKeyboardKey.keyB, control: true): () =>
-                _insertFormatting('**', '**'),
-            const SingleActivator(LogicalKeyboardKey.keyI, control: true): () =>
-                _insertFormatting('_', '_'),
-            const SingleActivator(LogicalKeyboardKey.keyS, control: true):
-                _save,
-          },
-          child: Focus(
-            autofocus: false,
-            child: Scaffold(
-              appBar: _buildAppBar(isDark),
-              body: Column(
-                children: [
-                  Expanded(
-                    child: isWideScreen
-                        ? _buildSplitView(isDark)
-                        : _showPreview
-                        ? _buildPreviewOnly(isDark)
-                        : _buildEditorOnly(isDark),
-                  ),
-                  MarkdownEditorToolbar(
-                    controller: _contentController,
-                    focusNode: _editorFocusNode,
-                    onSave: _save,
-                    isDirty: _isDirty,
-                  ),
-                ],
+        child: Scaffold(
+          appBar: _buildAppBar(isDark),
+          body: Column(
+            children: [
+              Expanded(
+                child: isWideScreen
+                    ? _buildSplitView(isDark)
+                    : _showPreview
+                    ? _buildPreviewOnly(isDark)
+                    : _buildEditorOnly(isDark),
               ),
-            ),
+              MarkdownEditorToolbar(
+                controller: _contentController,
+                focusNode: _editorFocusNode,
+                onSave: _save,
+                isDirty: _isDirty,
+              ),
+            ],
           ),
         ),
       ),
@@ -318,28 +305,37 @@ class _MarkdownEditorScreenState extends ConsumerState<MarkdownEditorScreen> {
   Widget _buildEditor(bool isDark) {
     return Container(
       color: isDark ? ReaderTheme.darkBackground : ReaderTheme.lightBackground,
-      child: TextField(
-        controller: _contentController,
-        focusNode: _editorFocusNode,
-        maxLines: null,
-        expands: true,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(24),
-          hintText: 'Start writing...',
-          hintStyle: TextStyle(
-            color: isDark
-                ? ReaderTheme.darkTextSecondary
-                : ReaderTheme.lightTextSecondary,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyB, control: true): () =>
+              _insertFormatting('**', '**'),
+          const SingleActivator(LogicalKeyboardKey.keyI, control: true): () =>
+              _insertFormatting('_', '_'),
+          const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+        },
+        child: TextField(
+          controller: _contentController,
+          focusNode: _editorFocusNode,
+          maxLines: null,
+          expands: true,
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.all(24),
+            hintText: 'Start writing...',
+            hintStyle: TextStyle(
+              color: isDark
+                  ? ReaderTheme.darkTextSecondary
+                  : ReaderTheme.lightTextSecondary,
+            ),
           ),
+          style: TextStyle(
+            fontFamily: 'monospace',
+            fontSize: 14,
+            height: 1.6,
+            color: isDark ? ReaderTheme.darkText : ReaderTheme.lightText,
+          ),
+          textAlignVertical: TextAlignVertical.top,
         ),
-        style: TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 14,
-          height: 1.6,
-          color: isDark ? ReaderTheme.darkText : ReaderTheme.lightText,
-        ),
-        textAlignVertical: TextAlignVertical.top,
       ),
     );
   }
@@ -347,44 +343,51 @@ class _MarkdownEditorScreenState extends ConsumerState<MarkdownEditorScreen> {
   Widget _buildPreview(bool isDark) {
     return Container(
       color: isDark ? ReaderTheme.darkBackground : ReaderTheme.lightBackground,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: MarkdownBody(
-          data: _previewContent,
-          selectable: true,
-          styleSheet: MarkdownStyleSheet(
-            h1: Theme.of(context).textTheme.displayLarge,
-            h2: Theme.of(context).textTheme.displayMedium,
-            h3: Theme.of(context).textTheme.displaySmall,
-            p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.8),
-            code: TextStyle(
-              fontFamily: 'monospace',
-              backgroundColor: isDark ? Colors.grey[850] : Colors.grey[200],
-              fontSize: 13,
-            ),
-            codeblockDecoration: BoxDecoration(
-              color: isDark ? Colors.grey[850] : Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            blockquoteDecoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: isDark
-                      ? ReaderTheme.darkAccent
-                      : ReaderTheme.lightAccent,
-                  width: 4,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxHeight == 0 || constraints.maxWidth == 0) {
+            return const SizedBox.shrink();
+          }
+          return Markdown(
+            data: _previewContent.isEmpty
+                ? _contentController.text
+                : _previewContent,
+            selectable: true,
+            padding: const EdgeInsets.all(24),
+            styleSheet: MarkdownStyleSheet(
+              h1: Theme.of(context).textTheme.displayLarge,
+              h2: Theme.of(context).textTheme.displayMedium,
+              h3: Theme.of(context).textTheme.displaySmall,
+              p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.8),
+              code: TextStyle(
+                fontFamily: 'monospace',
+                backgroundColor: isDark ? Colors.grey[850] : Colors.grey[200],
+                fontSize: 13,
+              ),
+              codeblockDecoration: BoxDecoration(
+                color: isDark ? Colors.grey[850] : Colors.grey[200],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              blockquoteDecoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: isDark
+                        ? ReaderTheme.darkAccent
+                        : ReaderTheme.lightAccent,
+                    width: 4,
+                  ),
                 ),
               ),
+              blockquotePadding: const EdgeInsets.only(left: 16),
+              listBullet: Theme.of(context).textTheme.bodyLarge,
             ),
-            blockquotePadding: const EdgeInsets.only(left: 16),
-            listBullet: Theme.of(context).textTheme.bodyLarge,
-          ),
-          onTapLink: (text, href, title) {
-            if (href != null) {
-              launchUrl(Uri.parse(href));
-            }
-          },
-        ),
+            onTapLink: (text, href, title) {
+              if (href != null) {
+                launchUrl(Uri.parse(href));
+              }
+            },
+          );
+        },
       ),
     );
   }

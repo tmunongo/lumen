@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
@@ -274,6 +275,34 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
     }
   }
 
+  Future<void> _exportMarkdownDocument(MarkdownDocument document) async {
+    try {
+      final savePath = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Markdown',
+        fileName: '${document.title}.md',
+        allowedExtensions: ['md'],
+        type: FileType.custom,
+      );
+
+      if (savePath != null) {
+        final service = ref.read(markdownServiceProvider);
+        await service.exportToFile(document, savePath);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Document exported successfully')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error exporting document: $e')));
+      }
+    }
+  }
+
   Widget _buildMarkdownSection() {
     final markdownDocs = ref.watch(
       projectMarkdownDocumentsProvider(widget.projectId),
@@ -372,6 +401,14 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
               onTap: () {
                 Navigator.pop(context);
                 _openMarkdownDocument(document);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Export'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportMarkdownDocument(document);
               },
             ),
             ListTile(

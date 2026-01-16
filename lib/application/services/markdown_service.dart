@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:lumen/domain/entities/markdown_document.dart';
 import 'package:lumen/domain/repositories/markdown_repository.dart';
 import 'package:lumen/domain/repositories/project_repository.dart';
 import 'package:lumen/infrastructure/services/project_storage_service.dart';
+import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 /// Service for managing markdown documents.
@@ -124,6 +127,46 @@ class MarkdownService {
         .replaceAll(RegExp(r'[\s_]+'), '-')
         .replaceAll(RegExp(r'-+'), '-')
         .replaceAll(RegExp(r'^-+|-+$'), '');
+  }
+
+  /// Export a document to a specific path
+  Future<void> exportToFile(
+    MarkdownDocument document,
+    String destinationPath,
+  ) async {
+    // Get the source file path
+    final projectDir = await _storageService.getProjectDirectory(
+      document.projectSlug,
+    );
+    final sourceFile = File(path.join(projectDir.path, document.filename));
+
+    if (!await sourceFile.exists()) {
+      throw Exception('Source file not found');
+    }
+
+    final destFile = File(destinationPath);
+    await destFile.writeAsString(document.content);
+  }
+
+  /// Import a document from a file path
+  Future<MarkdownDocument> importFromFile({
+    required int projectId,
+    required String filePath,
+  }) async {
+    final file = File(filePath);
+    if (!await file.exists()) {
+      throw Exception('Import file not found');
+    }
+
+    final content = await file.readAsString();
+    // Use filename as initial title, but clean it up
+    final title = path.basenameWithoutExtension(filePath);
+
+    return await createDocument(
+      projectId: projectId,
+      title: title,
+      initialContent: content,
+    );
   }
 
   /// Get default content for a new document
