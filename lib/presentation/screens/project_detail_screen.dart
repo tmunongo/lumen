@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
 import 'package:lumen/domain/entities/markdown_document.dart';
-import 'package:lumen/domain/entities/project.dart';
 import 'package:lumen/presentation/screens/markdown_editor_screen.dart';
 import 'package:lumen/presentation/screens/reader_screen.dart';
 import 'package:lumen/presentation/screens/relationship_screen.dart';
@@ -36,9 +35,10 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     super.dispose();
   }
 
-  void _showSearch(BuildContext context) async {
-    final artifactRepo = ref.read(artifactRepositoryProvider);
-    final artifacts = await artifactRepo.findByProject(widget.projectId);
+  void _showSearch() async {
+    final artifacts = await ref
+        .read(artifactRepositoryProvider)
+        .findByProject(widget.projectId);
 
     if (!mounted) return;
 
@@ -123,6 +123,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           );
         }
       }
+      ref.invalidate(projectArtifactsProvider(widget.projectId));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -143,7 +144,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             title: title,
             content: content,
           );
-          setState(() {});
+          ref.invalidate(projectArtifactsProvider(widget.projectId));
         },
       ),
     );
@@ -162,7 +163,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             attribution: attribution,
             sourceUrl: sourceUrl,
           );
-          setState(() {});
+          ref.invalidate(projectArtifactsProvider(widget.projectId));
         },
       ),
     );
@@ -204,7 +205,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
         title: titleController.text.trim(),
         imageFile: imageFile,
       );
-      setState(() {});
+      ref.invalidate(projectArtifactsProvider(widget.projectId));
     }
 
     titleController.dispose();
@@ -247,6 +248,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
           title: titleController.text.trim(),
         );
 
+        ref.invalidate(projectMarkdownDocumentsProvider(widget.projectId));
         setState(() {
           _selectedMarkdownDocument = document;
           _selectedArtifact = null;
@@ -372,23 +374,21 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final projectService = ref.watch(projectServiceProvider);
+    final projectAsync = ref.watch(projectByIdProvider(widget.projectId));
 
-    return FutureBuilder<Project?>(
-      future: projectService.getProject(widget.projectId),
-      builder: (context, projectSnapshot) {
-        if (!projectSnapshot.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+    return projectAsync.when(
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (err, stack) => Scaffold(body: Center(child: Text('Error: $err'))),
+      data: (project) {
+        if (project == null) {
+          return const Scaffold(body: Center(child: Text('Project not found')));
         }
-
-        final project = projectSnapshot.data!;
 
         return ShortcutScope(
           shortcuts: {
             KeyboardShortcuts.newNote: _createNote,
-            KeyboardShortcuts.search: () => _showSearch(context),
+            KeyboardShortcuts.search: () => _showSearch(),
             KeyboardShortcuts.openRelationships: () =>
                 _openRelationships(context),
             KeyboardShortcuts.focusUrlInput: () => _urlFocusNode.requestFocus(),

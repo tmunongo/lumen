@@ -4,7 +4,6 @@ import 'package:lumen/domain/services/content_extractor.dart';
 
 class ReadabilityExtractor implements ContentExtractor {
   // Tags that likely contain the main content
-  static const _contentTags = ['article', 'main', 'div'];
 
   // Tags to completely remove
   static const _removeTags = [

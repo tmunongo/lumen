@@ -135,12 +135,12 @@ class MarkdownEditorToolbar extends StatelessWidget {
             // Word count
             ValueListenableBuilder(
               valueListenable: controller,
-              builder: (context, _, __) {
+              builder: (context, _, _) {
                 final wordCount = _countWords(controller.text);
                 return Text(
                   '$wordCount words',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    color: theme.colorScheme.onSurface.withValues(alpha: .5),
                   ),
                 );
               },

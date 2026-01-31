@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lumen/application/providers.dart';
 import 'package:lumen/domain/entities/artifact.dart';
@@ -37,9 +38,9 @@ class ReaderToolbar extends ConsumerWidget {
           final service = ref.read(artifactServiceProvider);
           await service.updateArtifact(artifact: artifact, newTags: tags);
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Tags updated')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Tags updated')));
           }
         },
       ),
@@ -56,7 +57,7 @@ class ReaderToolbar extends ConsumerWidget {
     if (result == null) return;
 
     final linkService = ref.read(linkServiceProvider);
-    
+
     try {
       final link = await linkService.createLink(
         artifact.id,
@@ -68,12 +69,16 @@ class ReaderToolbar extends ConsumerWidget {
       if (context.mounted) {
         if (link != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Linked to "${result.artifact.title}" as ${link.typeLabel}')),
+            SnackBar(
+              content: Text(
+                'Linked to "${result.artifact.title}" as ${link.typeLabel}',
+              ),
+            ),
           );
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Link already exists')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Link already exists')));
         }
       }
     } catch (e) {
@@ -102,9 +107,9 @@ class ReaderToolbar extends ConsumerWidget {
             sourceUrl: sourceUrl ?? artifact.sourceUrl,
           );
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Quote created')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Quote created')));
           }
         },
       ),
@@ -114,26 +119,27 @@ class ReaderToolbar extends ConsumerWidget {
   void _shareArtifact() {
     final StringBuffer shareText = StringBuffer();
     shareText.writeln(artifact.title);
-    
+
     if (artifact.content != null && artifact.content!.isNotEmpty) {
       // For quotes and notes, share the content
-      if (artifact.type == ArtifactType.quote || artifact.type == ArtifactType.note) {
+      if (artifact.type == ArtifactType.quote ||
+          artifact.type == ArtifactType.note) {
         shareText.writeln();
         shareText.writeln(artifact.content);
       }
     }
-    
+
     if (artifact.attribution != null) {
       shareText.writeln();
       shareText.writeln('— ${artifact.attribution}');
     }
-    
+
     if (artifact.sourceUrl != null) {
       shareText.writeln();
       shareText.writeln(artifact.sourceUrl);
     }
-    
-    Share.share(shareText.toString());
+
+    SharePlus.instance.share(ShareParams(text: shareText.toString()));
   }
 
   @override
@@ -188,6 +194,12 @@ class ReaderToolbar extends ConsumerWidget {
               ),
               if (artifact.sourceUrl != null)
                 _ToolbarButton(
+                  icon: Icons.content_copy,
+                  label: 'Copy',
+                  onPressed: () => _copyUrl(context),
+                ),
+              if (artifact.sourceUrl != null)
+                _ToolbarButton(
                   icon: Icons.open_in_browser,
                   label: 'Original',
                   onPressed: () => _openOriginal(context),
@@ -216,6 +228,18 @@ class ReaderToolbar extends ConsumerWidget {
           context,
         ).showSnackBar(const SnackBar(content: Text('Could not open URL')));
       }
+    }
+  }
+
+  Future<void> _copyUrl(BuildContext context) async {
+    if (artifact.sourceUrl == null) return;
+
+    await Clipboard.setData(ClipboardData(text: artifact.sourceUrl!));
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('URL copied to clipboard')));
     }
   }
 }

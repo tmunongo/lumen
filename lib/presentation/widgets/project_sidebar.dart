@@ -82,6 +82,8 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
           );
         }
       }
+
+      ref.invalidate(projectArtifactsProvider(widget.projectId));
     } catch (e) {
       setState(() => _isIngesting = false);
       if (mounted) {
@@ -148,7 +150,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
         onSave: (tags) async {
           final service = ref.read(artifactServiceProvider);
           await service.updateArtifact(artifact: artifact, newTags: tags);
-          ref.invalidate(artifactRepositoryProvider);
+          ref.invalidate(projectArtifactsProvider(widget.projectId));
         },
       ),
     );
@@ -220,7 +222,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
       }
 
       if (mounted) {
-        setState(() {}); // Refresh list
+        ref.invalidate(projectArtifactsProvider(widget.projectId));
       }
     }
   }
@@ -310,7 +312,7 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
 
     return markdownDocs.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (documents) {
         if (documents.isEmpty) {
           return const SizedBox.shrink();
@@ -427,7 +429,6 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final artifactRepo = ref.watch(artifactRepositoryProvider);
     final tagRepo = ref.watch(tagRepositoryProvider);
 
     return Column(
@@ -547,100 +548,100 @@ class _ProjectSidebarState extends ConsumerState<ProjectSidebar> {
         const Divider(height: 1),
 
         // Artifacts list
-        Expanded(
-          child: FutureBuilder<List<Artifact>>(
-            future: _filterTag == null
-                ? artifactRepo.findByProject(widget.projectId)
-                : artifactRepo.findByTag(widget.projectId, _filterTag!),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final artifacts = snapshot.data!;
-
-              if (artifacts.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      _filterTag == null
-                          ? 'No artifacts'
-                          : 'No artifacts with tag',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).hintColor,
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.separated(
-                itemCount: artifacts.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final artifact = artifacts[index];
-                  final isSelected = widget.selectedArtifact?.id == artifact.id;
-
-                  return ListTile(
-                    dense: true,
-                    selected: isSelected,
-                    leading: _getArtifactIcon(artifact),
-                    title: Text(
-                      artifact.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: artifact.tags.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              artifact.tags.join(', '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(
-                                context,
-                              ).textTheme.bodySmall?.copyWith(fontSize: 11),
-                            ),
-                          )
-                        : null,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (!artifact.isFetched &&
-                            (artifact.type == ArtifactType.rawLink ||
-                                artifact.type == ArtifactType.webPage))
-                          const Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        IconButton(
-                          icon: const Icon(Icons.more_vert, size: 16),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => _showArtifactOptions(artifact),
-                        ),
-                      ],
-                    ),
-                    onTap: () => widget.onArtifactSelected(artifact),
-                    onLongPress: () => _showArtifactOptions(artifact),
-                  );
-                },
-              );
-            },
-          ),
-        ),
+        Expanded(child: _buildArtifactList(context)),
       ],
+    );
+  }
+
+  Widget _buildArtifactList(BuildContext context) {
+    final artifactsAsync = _filterTag == null
+        ? ref.watch(projectArtifactsProvider(widget.projectId))
+        : ref.watch(
+            projectArtifactsByTagProvider((
+              projectId: widget.projectId,
+              tagName: _filterTag!,
+            )),
+          );
+
+    return artifactsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, stack) => Center(child: Text('Error: $err')),
+      data: (artifacts) {
+        if (artifacts.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                _filterTag == null ? 'No artifacts' : 'No artifacts with tag',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).hintColor,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          itemCount: artifacts.length,
+          separatorBuilder: (_, _) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final artifact = artifacts[index];
+            final isSelected = widget.selectedArtifact?.id == artifact.id;
+
+            return ListTile(
+              dense: true,
+              selected: isSelected,
+              leading: _getArtifactIcon(artifact),
+              title: Text(
+                artifact.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+              subtitle: artifact.tags.isNotEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        artifact.tags.join(', '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(fontSize: 11),
+                      ),
+                    )
+                  : null,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!artifact.isFetched &&
+                      (artifact.type == ArtifactType.rawLink ||
+                          artifact.type == ArtifactType.webPage))
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, size: 16),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _showArtifactOptions(artifact),
+                  ),
+                ],
+              ),
+              onTap: () => widget.onArtifactSelected(artifact),
+              onLongPress: () => _showArtifactOptions(artifact),
+            );
+          },
+        );
+      },
     );
   }
 }

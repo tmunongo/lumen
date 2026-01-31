@@ -157,7 +157,7 @@ class _MarkdownEditorScreenState extends ConsumerState<MarkdownEditorScreen> {
         onPopInvokedWithResult: (didPop, result) async {
           if (!didPop && _isDirty) {
             await _save();
-            if (mounted) {
+            if (context.mounted) {
               Navigator.of(context).pop();
             }
           }
@@ -225,12 +225,15 @@ class _MarkdownEditorScreenState extends ConsumerState<MarkdownEditorScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 8),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.2),
+              color: Colors.orange.withValues(alpha: .2),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               _isSaving ? 'Saving...' : 'Unsaved',
-              style: TextStyle(color: Colors.orange[700], fontSize: 12),
+              style: TextStyle(
+                color: Colors.orange.withValues(alpha: .7),
+                fontSize: 12,
+              ),
             ),
           ),
         if (MediaQuery.of(context).size.width <= 800)

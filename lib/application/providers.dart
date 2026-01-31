@@ -7,6 +7,7 @@ import 'package:lumen/application/services/link_service.dart';
 import 'package:lumen/application/services/markdown_service.dart';
 import 'package:lumen/application/services/project_service.dart';
 import 'package:lumen/application/services/relationship_service.dart';
+import 'package:lumen/domain/entities/artifact.dart';
 import 'package:lumen/domain/entities/markdown_document.dart';
 import 'package:lumen/domain/entities/project.dart';
 import 'package:lumen/domain/repositories/artifact_repository.dart';
@@ -154,4 +155,32 @@ final projectMarkdownDocumentsProvider =
     FutureProvider.family<List<MarkdownDocument>, int>((ref, projectId) async {
       final service = ref.watch(markdownServiceProvider);
       return await service.getProjectDocuments(projectId);
+    });
+
+// Project by ID provider
+final projectByIdProvider = FutureProvider.family<Project?, int>((
+  ref,
+  projectId,
+) async {
+  final service = ref.watch(projectServiceProvider);
+  return await service.getProject(projectId);
+});
+
+// Artifacts by Project ID provider
+final projectArtifactsProvider = FutureProvider.family<List<Artifact>, int>((
+  ref,
+  projectId,
+) async {
+  final repository = ref.watch(artifactRepositoryProvider);
+  return await repository.findByProject(projectId);
+});
+
+// Artifacts by Tag provider
+final projectArtifactsByTagProvider =
+    FutureProvider.family<List<Artifact>, ({int projectId, String tagName})>((
+      ref,
+      params,
+    ) async {
+      final repository = ref.watch(artifactRepositoryProvider);
+      return await repository.findByTag(params.projectId, params.tagName);
     });
